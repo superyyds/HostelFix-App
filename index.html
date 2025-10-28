@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HostelFix Application</title>
+    <!-- Load Tailwind CSS from CDN to ensure styling works -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      /* Ensure full screen height and use a standard font */
+      html, body, #root {
+        height: 100%;
+        margin: 0;
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- This is the 'root' element where the React application will be mounted -->
+    <div id="root"></div>
+    <!-- Script to load your main React entry point (main.jsx) -->
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
