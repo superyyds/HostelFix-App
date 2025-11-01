@@ -394,8 +394,8 @@ const ComplaintForm = ({ currentUser, onCreate, onClose }) => {
                 {step === 1 && (
                   <div className="grid grid-cols-1 h-full">
                     <div className="p-6">
-                      <h3 className="text-xl font-semibold text-indigo-700 mb-2">Hostel Information</h3>
-                      <p className="text-m text-gray-600 mb-6">Select the campus and hostel which you would like to report.</p>
+                      <h3 className="text-2xl font-semibold text-indigo-700 mb-2">Hostel Information</h3>
+                      <p className="text-lg text-gray-600 mb-6">Select the campus and hostel which you would like to report.</p>
 
                       <label className="block mb-2 font-medium">Campus</label>
                       <select
@@ -425,8 +425,8 @@ const ComplaintForm = ({ currentUser, onCreate, onClose }) => {
                 {step === 2 && (
                   <form className="h-full grid grid-cols-1 gap-8" onSubmit={(e) => { e.preventDefault(); handleNext(); }}>
                     <div className="p-6">
-                      <h3 className="text-xl font-semibold text-indigo-700 mb-2">Complaint Information</h3>
-                      <p className="text-m text-gray-600 mb-6">Fill required fields and attach images (photo of issue recommended).</p>
+                      <h3 className="text-2xl font-semibold text-indigo-700 mb-2">Complaint Information</h3>
+                      <p className="text-lg text-gray-600 mb-6">Fill required fields and attach images (photo of issue recommended).</p>
 
                       <label className="block mb-2 font-medium">Category</label>
                       <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full mb-6 p-3 border rounded-lg">
@@ -465,10 +465,10 @@ const ComplaintForm = ({ currentUser, onCreate, onClose }) => {
                             <span className="font-medium">Submitted successfully — returning to list...</span>
                           </div>
                         )}
-                        
+
                      <div className="p-6">
-                       <h3 className="text-xl font-semibold text-indigo-700 mb-2">Review & Confirm</h3>
-                       <p className="text-m text-gray-600 mb-6">Please verify all details before submitting.</p>
+                       <h3 className="text-2xl font-semibold text-indigo-700 mb-2">Review & Confirm</h3>
+                       <p className="text-lg text-gray-600 mb-6">Please verify all details before submitting.</p>
 
                       {/* Complaint Ticket */}
                       <div className="overflow-y-auto p-4 flex justify-center">
