@@ -1,61 +1,95 @@
 HostelFix: Real-time Facility Management System (CMT322 Simulation)
 
-This is the front-end simulation for the HostelFix application, designed to handle facility complaints, tracking, and management for university hostels. It uses React and Firebase Firestore for a real-time, role-based experience.
+This is the front-end simulation for the HostelFix application, designed to handle facility complaints, tracking, and management for university hostels. It uses React for the user interface and is prepared to integrate with Firebase Firestore for real-time, role-based data management.
 
-🌟 Core Features Implemented (Part A)
+🌟 Core Features Implemented (Part A - Simulation)
 
-Role-Based Access Control (Module 1): Users log in as either Student or Warden/Staff via distinct email IDs.
+The current working prototype includes the full User Management Module (Module 1) and navigational placeholders for the core modules.
 
-Multi-Page Navigation: The Dashboard features clear tabbed navigation to separate the three main modules: Complaints, Feedback, and Announcements/Reports.
+Module 1: User Management
 
-Complaint Submission (Module 2.1): Students can submit new facility complaints with category, description, and priority.
+Role-Based Access Control: Users explicitly select their role (Student or Warden/Staff) at login.
 
-Complaint Tracking & Resolution (Module 2.3 & 2.4): Wardens can update statuses (Pending, In Progress, Resolved). Status updates and resolution remarks are visible in real-time.
+Email Login: Authentication is simulated using an Email and Password structure.
 
-Data Persistence: All complaints are saved and retrieved in real-time using Firebase Firestore (public collection for easy collaboration).
+Multi-Page Navigation: Successful login redirects users to distinct Student or Warden Dashboards.
 
-🚀 Getting Started
+Navigational Structure
 
-Prerequisites
+Student Dashboard Links:
 
-You need the following installed on your machine:
+Register Complaint
 
-Node.js (LTS version recommended)
+Complaint Tracking
 
-npm (comes with Node.js)
+Announcements
 
-Git
+Warden Dashboard Links:
 
-Simulated Login
+New Complaints
 
-Use these credentials to test the application's different views:
+Feedback Review
 
-Role
+Generate Reports
 
-Email (Simulated)
+🚀 Getting Started (Instructions for Team Members)
 
-Password (Simulated)
+Follow these steps to clone the repository and run the application locally.
 
-Dashboard Access
+Step 1: Prerequisites
 
-Student
+Ensure you have the following software installed on your machine. You will need a Terminal (like VS Code's Integrated Terminal, PowerShell, or Git Bash) for all command-line operations.
 
-student@hostel.edu
+---> Node.js (LTS version): Required to run JavaScript outside the browser and to use npm.
 
-password
+---> Git: Required to download (clone) the code from GitHub.
 
-Complaints, Feedback, Announcements
+Step 2: Clone the Repository
 
-Warden / Staff
+----> Open your Terminal.
 
-warden@hostel.edu
+---> Navigate to the folder where you want to save the project (e.g., cd ~/Documents/Projects).
 
-password
+Run the following command to download the code:
 
-Complaints, Feedback, Reports
+---> git clone [YOUR_GITHUB_REPOSITORY_URL] ---> cd HostelFix-App
 
-🛠️ Planned Modules (For Team Collaboration)
+(Replace [YOUR_GITHUB_REPOSITORY_URL] with the actual HTTPS or SSH link from your GitHub page.)
 
-Feedback Management (Module 3): Needs the form for student ratings and the analytics view for wardens.
+Step 3: Install Dependencies
 
-Announcements/Reports (Module 4): Needs the content creation/posting feature and the analytics dashboards.
+---> This project uses React and the Vite development server. You must install all necessary libraries before running the app.
+
+---> Run this command in the project's root directory (HostelFix-App):
+
+---> npm install
+
+(This command reads the package.json file and installs all required packages, including react, vite, and lucide-react for icons.)
+
+Step 4: Run the Application
+
+Start the local development server to view the application in your browser.
+
+---> npm run dev
+
+The terminal will provide a local URL (e.g., http://localhost:5173/). Hold Ctrl (or Cmd on Mac) and click the link to open HostelFix.
+
+🔑 Simulated Login Credentials (Use for Testing)
+
+<<< Student Access >>>
+
+Role: Student
+
+Email (Simulated): student@hostel.edu
+
+Password (Simulated): password
+
+Dashboard Access: Complaints, Feedback, Announcements
+
+<<< Warden / Staff Access >>>
+
+Role: Warden / Staff
+
+Email (Simulated): warden@hostel.edu
+
+Password (Simulated): password
