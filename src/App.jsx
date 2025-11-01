@@ -1,5 +1,6 @@
-import React, { useState } from "react";
-import { LogIn, Home, Shield, AlertTriangle, MessageSquare, Briefcase, User, Mail, Users, Compass } from "lucide-react";
+import React, { useState, useMemo } from "react";
+import { motion } from "framer-motion";
+import { LogIn, Home, Shield, AlertTriangle, MessageSquare, Briefcase, User, Mail, Compass, X, Image as ImageIcon, CheckCircle } from "lucide-react";
 
 // --- Custom Components for Enhanced UI ---
 
@@ -222,102 +223,634 @@ const DashboardCard = ({ icon: Icon, title, description, color, onClick = () => 
     </button>
 );
 
-// Placeholder Student Dashboard
-const StudentDashboard = ({ onLogout }) => (
-  <div className="p-8 bg-indigo-50 min-h-screen">
-    <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl font-extrabold text-indigo-700 mb-6 border-b pb-2">Student Portal - HostelFix</h1>
-        <div className="bg-white p-6 rounded-xl shadow-lg mb-8 flex justify-between items-center">
-            <p className="text-lg text-gray-700">
-                Welcome, Student! Get started by submitting a new complaint.
-            </p>
-            <PrimaryButton onClick={onLogout} className="w-auto px-6 bg-red-500 hover:bg-red-600 ml-4">
-                <div className="flex items-center justify-center"><LogIn className="w-5 h-5 mr-2" /> Log Out</div>
-            </PrimaryButton>
+// ---- Complaint Management module ----
+
+const STATUS = { PENDING: 'Pending', IN_PROGRESS: 'In Progress', RESOLVED: 'Resolved' };
+
+// Simple in-memory "id" generator
+const makeId = () => Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+
+// Complaint Form component (common)
+const ComplaintForm = ({ currentUser, onCreate, onClose }) => {
+  const [step, setStep] = useState(1);
+  const [campus, setCampus] = useState("");
+  const [hostel, setHostel] = useState("");
+  const [category, setCategory] = useState("");
+  const [description, setDescription] = useState("");
+  const [priority, setPriority] = useState("Medium");
+  const [images, setImages] = useState([]);
+  const [isSubmitted, setIsSubmitted] = useState(false);
+
+  const hostelOptions = {
+    "Main Campus": ["AMAN DAMAI", "BAKTI PERMAI", "CAHAYA GEMILANG", "FAJAR HARAPAN", "INDAH KEMBARA", "RESTU", "SAUJANA", "TEKUN"],
+    "Engineering Campus": ["UTAMA", "LEMBARAN", "JAYA"],
+    "Health Campus": ["MURNI", "NURANI"]
+  };
+
+  const steps = [
+    { id: 1, title: 'Campus & Hostel' },
+    { id: 2, title: 'Complaint Detail' },
+    { id: 3, title: 'Confirmation' },
+  ];
+
+  const handleNext = () => {
+    if (step === 1 && (!campus || !hostel)) {
+      return alert("Please select campus and hostel.");
+    }
+    if (step === 2 && (!category || !description)) {
+      return alert("Please complete complaint details.");
+    }
+    setStep(s => Math.min(3, s + 1));
+  };
+
+  const handlePrev = () => setStep(s => Math.max(1, s - 1));
+
+  const handleSubmit = (e) => {
+    e && e.preventDefault && e.preventDefault();
+    const newComplaint = {
+      _id: makeId(),
+      userId: currentUser.id,
+      userName: currentUser.name,
+      campus,
+      hostel,
+      category,
+      description,
+      priority,
+      status: STATUS.PENDING,
+      remarks: "",
+      attachments: images.map((f) => f.name),
+      dateSubmitted: new Date().toISOString(),
+      dateResolved: null,
+      assignedTo: null,
+    };
+    onCreate(newComplaint);
+    // show success state then close
+    setIsSubmitted(true);
+    setTimeout(() => {
+      setIsSubmitted(false);
+      onClose();
+      // reset form (optional)
+      setStep(1); setCampus(''); setHostel(''); setCategory(''); setDescription(''); setPriority('Medium'); setImages([]);
+    }, 1200);
+  };
+
+  // framer-motion variants for slide animation
+  const variants = {
+    enter: (dir) => ({ x: dir > 0 ? 200 : -200, opacity: 0 }),
+    center: { x: 0, opacity: 1 },
+    exit: (dir) => ({ x: dir < 0 ? 200 : -200, opacity: 0 }),
+  };
+
+  // overall layout is full-page centered card
+  return (
+    <div className="min-h-screen bg-indigo-50 py-10">
+      <div className="max-w-7xl mx-auto px-6">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-3xl font-extrabold text-indigo-700">Register a Complaint</h1>
+            <p className="text-gray-600 mt-1">Complete this form to report your complaint to the warden.</p>
+          </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <DashboardCard 
-                icon={AlertTriangle} 
-                title="Register Complaint" 
-                description="Log a new issue with room or facilities (Module 2)." 
-                color="text-red-500" 
-            />
-            <DashboardCard 
-                icon={MessageSquare} 
-                title="Complaint Tracking" 
-                description="View status (Pending, Resolved) and history." 
-                color="text-blue-500" 
-            />
-            <DashboardCard 
-                icon={Shield} 
-                title="View Announcements" 
-                description="Warden updates and maintenance schedules." 
-                color="text-green-500" 
-            />
+
+        <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
+          {/* Step header */}
+          <div className="p-10 border-b bg-white">
+            <div className="flex justify-between items-center">
+              {steps.map((s, idx) => {
+                const completed = step > s.id;
+                const active = step === s.id;
+                const isLast = idx === steps.length - 1;
+
+                return (
+                  <div key={s.id} className="flex-1 flex flex-col items-center relative">
+                    {/* Step Circle */}
+                    <div
+                      className={`w-12 h-12 flex items-center justify-center rounded-full border-2 relative z-10
+                        bg-white
+                        ${completed
+                          ? 'bg-blue-600 border-blue-600 text-white'
+                          : active
+                          ? 'bg-blue-100 border-blue-400 text-blue-700'
+                          : 'bg-gray-100 border-gray-300 text-gray-500'
+                        }`}
+                      style={{
+                        boxShadow: '0 0 0 15px white',
+                      }}
+                    >
+                      {completed ? (
+                        <CheckCircle className="w-6 h-6 text-white" />
+                      ) : (
+                        <span className="text-lg font-semibold">{s.id}</span>
+                      )}
+                    </div>
+
+                    {/* Connecting Line */}
+                    {!isLast && (
+                      <div
+                        className={`absolute top-6 left-1/2 w-full h-[2px] 
+                          ${completed ? 'bg-blue-600' : 'bg-gray-300'}`}
+                        style={{
+                          transform: 'translateX(0%)',
+                          width: '100%',
+                          zIndex: 0,
+                        }}
+                      />
+                    )}
+
+                    {/* Step Label */}
+                    <div className="mt-6 text-center">
+                      <div className={`text-xl font-semibold ${active ? 'text-blue-700' : 'text-gray-500'}`}>
+                        {s.title}
+                      </div>
+                      <div className="text-m text-gray-400">
+                        {idx === 0
+                          ? 'Select campus & hostel'
+                          : idx === 1
+                          ? 'Enter details & images'
+                          : 'Confirm & submit'}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Main content: large card with animation */}
+          <div className="p-8">
+            {/* motion wrapper */}
+            <div className="relative max-h-[200vh] overflow-y-auto pr-2">
+            <motion.div
+              key={step}
+              custom={step}
+              variants={variants}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{ duration: 0.4 }}
+              className="min-h-full"
+            >
+                {/* Step 1 */}
+                {step === 1 && (
+                  <div className="grid grid-cols-1 h-full">
+                    <div className="p-6">
+                      <h3 className="text-xl font-semibold text-indigo-700 mb-2">Hostel Information</h3>
+                      <p className="text-m text-gray-600 mb-6">Select the campus and hostel which you would like to report.</p>
+
+                      <label className="block mb-2 font-medium">Campus</label>
+                      <select
+                        value={campus}
+                        onChange={(e) => { setCampus(e.target.value); setHostel(''); }}
+                        className="w-full mb-6 p-3 border rounded-lg"
+                      >
+                        <option value="">Choose a campus</option>
+                        {Object.keys(hostelOptions).map(c => <option key={c} value={c}>{c}</option>)}
+                      </select>
+
+                      {campus && (
+                        <>
+                          <label className="block mb-2 font-medium">Hostel</label>
+                          <select value={hostel} onChange={(e) => setHostel(e.target.value)} className="w-full p-3 border rounded-lg">
+                            <option value="">Choose a hostel</option>
+                            {hostelOptions[campus].map(h => <option key={h} value={h}>{h}</option>)}
+                          </select>
+                        </>
+                      )}
+                    </div>
+                    
+                  </div>
+                )}
+
+                {/* Step 2 */}
+                {step === 2 && (
+                  <form className="h-full grid grid-cols-1 gap-8" onSubmit={(e) => { e.preventDefault(); handleNext(); }}>
+                    <div className="p-6">
+                      <h3 className="text-xl font-semibold text-indigo-700 mb-2">Complaint Information</h3>
+                      <p className="text-m text-gray-600 mb-6">Fill required fields and attach images (photo of issue recommended).</p>
+
+                      <label className="block mb-2 font-medium">Category</label>
+                      <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full mb-6 p-3 border rounded-lg">
+                        <option value="">Select category</option>
+                        <option>Plumbing</option>
+                        <option>Electrical</option>
+                        <option>Furniture</option>
+                        <option>Room</option>
+                        <option>Other</option>
+                      </select>
+
+                      <label className="block mb-2 font-medium">Priority</label>
+                      <select value={priority} onChange={(e) => setPriority(e.target.value)} className="w-full mb-6 p-3 border rounded-lg">
+                        <option>Low</option>
+                        <option>Medium</option>
+                        <option>High</option>
+                      </select>
+                  
+                      <label className="block mb-2 font-medium">Description</label>
+                      <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={8} className="w-full p-3 border rounded-lg mb-6" placeholder="Describe the issue in detail..."></textarea>
+
+                      <label className="block mb-4 font-medium flex items-center gap-2"><ImageIcon className="w-5 h-5" /> Upload Images</label>
+                      <input type="file" multiple accept="image/*" onChange={(e) => setImages(Array.from(e.target.files))} className="mb-6" />
+
+                    </div>
+                  </form>
+                )}
+
+                {/* Step 3 */}
+                {step === 3 && (
+                   <div className="h-full grid grid-cols-1 gap-8">
+                    {/* Status message */}
+                        {isSubmitted && (
+                          <div className="flex items-center gap-3 text-green-700 bg-green-50 border border-green-200 rounded-lg p-3">
+                            <CheckCircle className="w-5 h-5" />
+                            <span className="font-medium">Submitted successfully — returning to list...</span>
+                          </div>
+                        )}
+                        
+                     <div className="p-6">
+                       <h3 className="text-xl font-semibold text-indigo-700 mb-2">Review & Confirm</h3>
+                       <p className="text-m text-gray-600 mb-6">Please verify all details before submitting.</p>
+
+                      {/* Complaint Ticket */}
+                      <div className="overflow-y-auto p-4 flex justify-center">
+                        <div className="w-full max-w-3xl bg-white border border-gray-200 shadow-lg rounded-2xl overflow-hidden">
+                          {/* Header section */}
+                          <div className="bg-gradient-to-r from-indigo-600 to-blue-500 text-white p-6 flex justify-between items-center">
+                            <div>
+                              <h3 className="text-2xl font-semibold">Complaint Ticket Preview</h3>
+                            </div>
+                            <div className="text-right">
+                              <p
+                                className={`text-sm font-bold px-3 py-1 rounded-full inline-block ${
+                                  priority === "High"
+                                    ? "bg-red-500 text-white"
+                                    : priority === "Medium"
+                                    ? "bg-yellow-400 text-gray-800"
+                                    : "bg-green-400 text-gray-800"
+                                }`}
+                              >
+                                {priority}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Body content */}
+                          <div className="p-6 space-y-6">
+                            <div className="grid grid-cols-2 gap-6">
+                              <div>
+                                <h4 className="text-sm font-medium text-gray-500 uppercase mb-1">Campus</h4>
+                                <p className="text-gray-800 text-base font-semibold">{campus || "—"}</p>
+                              </div>
+
+                              <div>
+                                <h4 className="text-sm font-medium text-gray-500 uppercase mb-1">Hostel</h4>
+                                <p className="text-gray-800 text-base font-semibold">{hostel || "—"}</p>
+                              </div>
+
+                              <div>
+                                <h4 className="text-sm font-medium text-gray-500 uppercase mb-1">Category</h4>
+                                <p className="text-gray-800 text-base font-semibold">{category || "—"}</p>
+                              </div>
+
+                              <div>
+                                <h4 className="text-sm font-medium text-gray-500 uppercase mb-1">Date</h4>
+                                <p className="text-gray-800 text-base font-semibold">
+                                  {new Date().toLocaleDateString("en-MY")}
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Description box */}
+                            <div>
+                              <h4 className="text-sm font-medium text-gray-500 uppercase mb-2">Description</h4>
+                              <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 text-sm text-gray-700 leading-relaxed min-h-[100px] whitespace-pre-wrap">
+                                {description || "—"}
+                              </div>
+                            </div>
+
+                            {/* Attachments */}
+                            <div>
+                              <h4 className="text-sm font-medium text-gray-500 uppercase mb-2">Attachments</h4>
+                              {images.length > 0 ? (
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                  {images.map((f, i) => (
+                                    <div
+                                      key={i}
+                                      className="relative group border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition"
+                                    >
+                                      <img
+                                        src={URL.createObjectURL(f)}
+                                        alt={`attachment-${i}`}
+                                        className="w-full h-40 object-cover"
+                                      />
+                                      <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-40 text-white text-xs py-1 px-2 truncate">
+                                        {f.name}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div className="p-4 bg-gray-50 border border-gray-200 text-gray-400 rounded-lg text-sm">
+                                  No images uploaded
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Footer bar (like a ticket stub) */}
+                          <div className="border-t border-dashed border-gray-300 p-4 text-center text-gray-500 text-xs bg-gray-50">
+                            Complaint ID will be generated upon submission.
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </motion.div>
+            </div>
+
+            {/* bottom quick controls */}
+            <div className="mt-6 flex items-center justify-between">
+              <div className="text-sm text-gray-500">Need help? Contact the warden for urgent issues.</div>
+              <div className="flex items-center gap-5">
+                {step > 1 ? (
+                  <button
+                    type="button"
+                    onClick={handlePrev}
+                    className="px-6 py-3 rounded border text-gray-700 hover:bg-gray-100 transition"
+                  >
+                    Back
+                  </button>
+                ) : (
+                  <div />
+                )}
+
+                {/* Next / Submit button */}
+                {step < steps.length ? (
+                  <PrimaryButton onClick={handleNext} className="w-auto px-6">
+                    Next
+                  </PrimaryButton>
+                ) : (
+                  <PrimaryButton onClick={handleSubmit} className="w-auto px-6">
+                    Submit
+                  </PrimaryButton>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
+      </div>
     </div>
-  </div>
-);
+  );
+};
+
+// Complaint list component (common)
+const ComplaintList = ({ list, onSelect, filter = {}, title = 'Complaints' }) => {
+  const filtered = useMemo(() => {
+    return list.filter(c => {
+      if (filter.userId && c.userId !== filter.userId) return false;
+      if (filter.status && c.status !== filter.status) return false;
+      return true;
+    }).sort((a,b)=> new Date(b.dateSubmitted) - new Date(a.dateSubmitted));
+  }, [list, filter]);
+
+  return (
+    <div className="bg-white p-6 rounded-lg shadow">
+      <h2 className="text-xl font-semibold mb-4">{title}</h2>
+      {filtered.length === 0 ? <p className="text-gray-500">No complaints found.</p> : (
+        <div className="space-y-3">
+          {filtered.map(c => (
+            <button key={c._id} onClick={()=>onSelect(c)} className="w-full text-left p-3 border rounded hover:bg-gray-50 flex justify-between items-start">
+              <div>
+                <div className="flex items-center gap-3">
+                  <strong>{c.category}</strong>
+                  <span className="text-xs text-gray-500">{c.priority}</span>
+                </div>
+                <div className="text-sm text-gray-600">{c.description.slice(0,120)}</div>
+                <div className="text-xs text-gray-400 mt-1">{c.userName} • {new Date(c.dateSubmitted).toLocaleString()}</div>
+              </div>
+              <div className="text-sm">
+                <span className={`px-2 py-1 rounded text-white ${c.status === STATUS.PENDING ? 'bg-yellow-500' : c.status === STATUS.IN_PROGRESS ? 'bg-blue-500' : 'bg-green-600'}`}>
+                  {c.status}
+                </span>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Complaint detail + actions
+const ComplaintDetail = ({ complaint, currentUser, onClose, onUpdate }) => {
+  const [remarks, setRemarks] = useState('');
+  const [assignedTo, setAssignedTo] = useState(complaint.assignedTo || '');
+  const [status, setStatus] = useState(complaint.status);
+
+  if (!complaint) return null;
+  const isWarden = currentUser.role === 'warden';
+  const canResolve = isWarden || (complaint.userId === currentUser.id);
+
+  const applyUpdate = () => {
+    const updates = {};
+    if (assignedTo !== complaint.assignedTo) updates.assignedTo = assignedTo || null;
+    if (status !== complaint.status) {
+      updates.status = status;
+      if (status === STATUS.RESOLVED) updates.dateResolved = new Date().toISOString();
+      else updates.dateResolved = null;
+    }
+    if (remarks.trim()) updates.remarks = (complaint.remarks ? complaint.remarks + '\n' : '') + `${currentUser.name}: ${remarks}`;
+    onUpdate(complaint._id, updates);
+    setRemarks('');
+  };
+
+  return (
+    <div className="fixed inset-0 z-40 flex items-start justify-center p-6">
+      <div className="w-full max-w-3xl bg-white rounded-lg shadow-xl p-6 relative">
+        <button onClick={onClose} className="absolute top-4 right-4 text-gray-500 hover:text-gray-900">Close</button>
+        <h3 className="text-2xl font-bold mb-2">{complaint.category} — {complaint.priority}</h3>
+        <div className="text-sm text-gray-600 mb-3">Submitted by: {complaint.userName} • {new Date(complaint.dateSubmitted).toLocaleString()}</div>
+        <p className="mb-4">{complaint.description}</p>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div>
+            <div className="text-xs text-gray-500">Status</div>
+            <div className="font-medium mb-2">{complaint.status}</div>
+
+            <div className="text-xs text-gray-500">Assigned To</div>
+            <div className="font-medium mb-2">{complaint.assignedTo || 'Unassigned'}</div>
+
+            <div className="text-xs text-gray-500">Attachments</div>
+            <div className="text-sm mb-2">{complaint.attachments.length ? complaint.attachments.join(', ') : '—'}</div>
+
+            <div className="text-xs text-gray-500">Remarks / History</div>
+            <pre className="text-sm p-2 bg-gray-50 rounded h-28 overflow-auto">{complaint.remarks || 'No remarks yet.'}</pre>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">Add remark</label>
+            <textarea value={remarks} onChange={e=>setRemarks(e.target.value)} className="w-full p-2 border rounded mb-3" rows={4} />
+
+            <label className="block text-sm font-medium mb-1">Change status</label>
+            <select value={status} onChange={e=>setStatus(e.target.value)} className="w-full mb-3 p-2 border rounded">
+              <option>{STATUS.PENDING}</option>
+              <option>{STATUS.IN_PROGRESS}</option>
+              <option>{STATUS.RESOLVED}</option>
+            </select>
+
+            {isWarden && (
+              <>
+                <label className="block text-sm font-medium mb-1">Assign to (staff name)</label>
+                <input value={assignedTo} onChange={e=>setAssignedTo(e.target.value)} className="w-full mb-3 p-2 border rounded" placeholder="Enter staff name to assign" />
+              </>
+            )}
+
+            <div className="flex gap-3">
+              <PrimaryButton onClick={applyUpdate}>Apply</PrimaryButton>
+              <button onClick={onClose} className="px-4 py-2 rounded border text-gray-700">Cancel</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Placeholder Student Dashboard
+const StudentDashboard = ({ currentUser, complaints, onCreateComplaint, onUpdateComplaint, onLogout }) => {
+  const [page, setPage] = useState('my'); // 'register' | 'my' | 'history'
+  const [selected, setSelected] = useState(null);
+
+  return (
+    <div className="p-8 bg-indigo-50 min-h-screen">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-3xl font-extrabold text-indigo-700">Student Portal - HostelFix</h1>
+          <div className="flex items-center gap-4">
+            <div className="text-sm text-gray-700">Signed in as <strong>{currentUser.name}</strong></div>
+            <PrimaryButton onClick={onLogout} className="w-auto px-4 bg-red-500 hover:bg-red-600">
+              <div className="flex items-center"><LogIn className="w-4 h-4 mr-2" /> Log Out</div>
+            </PrimaryButton>
+          </div>
+        </div>
+
+        <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+          <DashboardCard icon={MessageSquare} title="My Complaints" description="Track progress of complaints you submitted." color="text-blue-500" onClick={()=>setPage('my')} />
+          <DashboardCard icon={AlertTriangle} title="Register Complaint" description="Log a new issue with room or facilities." color="text-red-500" onClick={()=>setPage('register')} />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="md:col-span-2">
+            {page === 'my' && (
+              <ComplaintList list={complaints} filter={{ userId: currentUser.id }} onSelect={c=>setSelected(c)} title="My Complaints" />
+            )}
+            {page === 'register' && <ComplaintForm currentUser={currentUser} onCreate={onCreateComplaint} onClose={() => setPage('my')} />}
+          </div>
+        </div>
+
+      </div>
+
+      {selected && <ComplaintDetail complaint={selected} currentUser={currentUser} onClose={()=>setSelected(null)} onUpdate={onUpdateComplaint} />}
+    </div>
+  );
+};
 
 // Placeholder Warden Dashboard
-const WardenDashboard = ({ onLogout }) => (
-  <div className="p-8 bg-gray-100 min-h-screen">
-    <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl font-extrabold text-gray-800 mb-6 border-b pb-2">Warden Portal - HostelFix Management</h1>
-        <div className="bg-white p-6 rounded-xl shadow-lg mb-8 flex justify-between items-center">
-            <p className="text-lg text-gray-700">
-                Welcome, Warden/Staff! Use the tools below to manage and resolve facility issues.
-            </p>
-            <PrimaryButton onClick={onLogout} className="w-auto px-6 bg-red-500 hover:bg-red-600 ml-4">
-                <div className="flex items-center justify-center"><LogIn className="w-5 h-5 mr-2" /> Log Out</div>
+const WardenDashboard = ({ currentUser, complaints, onUpdateComplaint, onLogout }) => {
+  const [view, setView] = useState('new'); // 'new' | 'all' | 'inprogress'
+  const [selected, setSelected] = useState(null);
+
+  const counts = useMemo(() => ({
+    newCount: complaints.filter(c=>c.status===STATUS.PENDING).length,
+    inProgress: complaints.filter(c=>c.status===STATUS.IN_PROGRESS).length,
+    resolved: complaints.filter(c=>c.status===STATUS.RESOLVED).length
+  }), [complaints]);
+
+  return (
+    <div className="p-8 bg-gray-100 min-h-screen">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-3xl font-extrabold text-gray-800">Warden Portal - HostelFix Management</h1>
+          <div className="flex items-center gap-4">
+            <div className="text-sm text-gray-700">Signed in as <strong>{currentUser.name}</strong></div>
+            <PrimaryButton onClick={onLogout} className="w-auto px-4 bg-red-500 hover:bg-red-600">
+              <div className="flex items-center"><LogIn className="w-4 h-4 mr-2" /> Log Out</div>
             </PrimaryButton>
+          </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <DashboardCard 
-                icon={AlertTriangle} 
-                title="New Complaints (5)" 
-                description="Review and assign unhandled issues (Module 2)." 
-                color="text-red-500" 
-            />
-            <DashboardCard 
-                icon={MessageSquare} 
-                title="Feedback Review" 
-                description="Analyze student satisfaction ratings (Module 3)." 
-                color="text-indigo-500" 
-            />
-            <DashboardCard 
-                icon={Shield} 
-                title="Generate Reports" 
-                description="Quarterly analytics on resolution times (Module 4)." 
-                color="text-green-500" 
-            />
+
+        <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+          <DashboardCard icon={AlertTriangle} title={`New Complaints (${counts.newCount})`} description="Assign unhandled issues." color="text-red-500" onClick={()=>setView('new')} />
+          <DashboardCard icon={MessageSquare} title={`In Progress (${counts.inProgress})`} description="Work currently being handled." color="text-indigo-500" onClick={()=>setView('inprogress')} />
+          <DashboardCard icon={Shield} title={`Resolved (${counts.resolved})`} description="Completed jobs & history." color="text-green-500" onClick={()=>setView('all')} />
         </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="md:col-span-2">
+            <ComplaintList list={complaints} filter={view==='new' ? { status: STATUS.PENDING } : view==='inprogress' ? { status: STATUS.IN_PROGRESS } : {}} onSelect={c=>setSelected(c)} title={view === 'new' ? 'New / Unassigned' : view === 'inprogress' ? 'In Progress' : 'All Complaints'} />
+          </div>
+        </div>
+
+      </div>
+
+      {selected && <ComplaintDetail complaint={selected} currentUser={currentUser} onClose={()=>setSelected(null)} onUpdate={onUpdateComplaint} />}
     </div>
-  </div>
-);
+  );
+};
 
 // --- Main App Component ---
 
 const App = () => {
   const [view, setView] = useState("login"); // 'login', 'student', 'warden'
+  // simple "current user" mock
+  const [currentUser, setCurrentUser] = useState(null);
 
-  const handleLoginSuccess = (role) => {
+  // in-memory complaints store
+  const [complaints, setComplaints] = useState([
+    // sample seed
+    {
+      _id: makeId(),
+      userId: 'u1',
+      userName: 'Alice Student',
+      category: 'Plumbing',
+      description: 'Leaky tap in bathroom 203.',
+      priority: 'High',
+      status: STATUS.PENDING,
+      remarks: '',
+      attachments: [],
+      dateSubmitted: new Date(Date.now()-1000*60*60*24).toISOString(),
+      dateResolved: null,
+      assignedTo: null
+    }
+  ]);
+
+  const handleLoginSuccess = (role, name='Student User') => {
+    setCurrentUser({ id: role === 'student' ? 'u1' : 'warden1', role, name: role === 'student' ? name : 'Warden User' });
     setView(role);
   };
 
   const handleLogout = () => {
     setView("login");
+    setCurrentUser(null);
+  };
+
+  const createComplaint = (c) => {
+    setComplaints(prev => [c, ...prev]);
+  };
+
+  const updateComplaint = (id, updates) => {
+    setComplaints(prev => prev.map(c => c._id === id ? { ...c, ...updates } : c));
   };
 
   const renderView = () => {
     switch (view) {
       case "student":
-        return <StudentDashboard onLogout={handleLogout} />;
+        return <StudentDashboard currentUser={currentUser} complaints={complaints} onCreateComplaint={createComplaint} onUpdateComplaint={updateComplaint} onLogout={handleLogout} />;
       case "warden":
-        return <WardenDashboard onLogout={handleLogout} />;
+        return <WardenDashboard currentUser={currentUser} complaints={complaints} onUpdateComplaint={updateComplaint} onLogout={handleLogout} />;
       case "login":
       default:
-        return <LoginPage onLoginSuccess={handleLoginSuccess} />;
+        return <LoginPage onLoginSuccess={(role) => handleLoginSuccess(role, role === 'student' ? 'Alice Student' : 'Warden User')} />;
     }
   };
 
