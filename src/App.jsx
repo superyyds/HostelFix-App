@@ -1,26 +1,51 @@
 import React, { useState } from "react";
-import { LogIn, Home, Shield, AlertTriangle, MessageSquare, Briefcase, User, Mail, Users, Compass } from "lucide-react";
+import { LogIn, Home, Shield, AlertTriangle, MessageSquare, Briefcase, User, Mail, Users, Compass, Star, Send, Upload, Edit2, ArrowLeft } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { motion } from "framer-motion";
 
 // --- Custom Components for Enhanced UI ---
 
 // Reusable Button Component for a sleek, primary look
-const PrimaryButton = ({ children, onClick, disabled = false, type = 'button', className = '' }) => (
-  <button
-    onClick={onClick}
-    disabled={disabled}
-    type={type}
-    className={`
-      w-full py-3 px-4 font-semibold text-lg tracking-wider
-      bg-indigo-600 text-white rounded-lg shadow-lg
-      transition duration-300 ease-in-out transform
-      hover:bg-indigo-700 hover:shadow-xl active:scale-95
-      disabled:bg-gray-400 disabled:shadow-none
-      ${className}
-    `}
-  >
-    {children}
-  </button>
-);
+export const PrimaryButton = ({
+  children,
+  onClick,
+  disabled = false,
+  type = "button",
+  className = "",
+  variant = "primary", // 'primary', 'secondary', 'danger', 'success'
+  fullWidth = false,
+}) => {
+  // 🎨 Color Variants for different actions
+  const variantClasses = {
+    primary: "bg-indigo-600 hover:bg-indigo-700 text-white",
+    secondary: "bg-gray-500 hover:bg-gray-600 text-white",
+    success: "bg-green-500 hover:bg-green-600 text-white",
+    danger: "bg-red-500 hover:bg-red-600 text-white",
+  };
+
+  return (
+    <motion.button
+      whileHover={!disabled ? { scale: 1.03 } : {}}
+      whileTap={!disabled ? { scale: 0.95 } : {}}
+      onClick={onClick}
+      disabled={disabled}
+      type={type}
+      className={`
+        ${fullWidth ? "w-full" : "w-auto"}
+        ${variantClasses[variant]}
+        py-3 px-5 rounded-xl font-semibold text-lg tracking-wide
+        shadow-md transition-all duration-300 ease-in-out
+        focus:outline-none focus:ring-4 focus:ring-indigo-300
+        active:scale-95
+        disabled:bg-gray-400 disabled:shadow-none disabled:cursor-not-allowed
+        flex items-center justify-center gap-2
+        ${className}
+      `}
+    >
+      {children}
+    </motion.button>
+  );
+};
 
 // Reusable Input Field for a clean, professional look
 const InputField = ({ icon: Icon, type, placeholder, value, onChange }) => (
@@ -209,6 +234,289 @@ const LoginPage = ({ onLoginSuccess }) => {
   );
 };
 
+// ---------------- Feedback Module ----------------
+
+export const FeedbackForm = ({ onBack, onSubmitFeedback, editingFeedback, onCancelEdit }) => {
+  const [feedbackText, setFeedbackText] = useState(editingFeedback?.feedbackText || "");
+  const [ratings, setRatings] = useState(
+    editingFeedback?.ratings || {
+      responseTime: 0,
+      serviceQuality: 0,
+      communication: 0,
+    }
+  );
+  const [image, setImage] = useState(editingFeedback?.image || null);
+
+  const handleRating = (aspect, value) => {
+    setRatings((prev) => ({ ...prev, [aspect]: value }));
+  };
+
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) setImage(URL.createObjectURL(file));
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!feedbackText || Object.values(ratings).some((r) => r === 0)) {
+      alert("Please rate all aspects and provide feedback.");
+      return;
+    }
+
+    const avg =
+      Object.values(ratings).reduce((a, b) => a + b, 0) / Object.keys(ratings).length;
+
+    const feedback = {
+      id: editingFeedback ? editingFeedback.id : Date.now(),
+      feedbackText,
+      ratings,
+      averageRating: parseFloat(avg.toFixed(1)),
+      image,
+      createdAt: new Date().toLocaleString(),
+      reviewed: false,
+    };
+
+    onSubmitFeedback(feedback);
+    setFeedbackText("");
+    setRatings({ responseTime: 0, serviceQuality: 0, communication: 0 });
+    setImage(null);
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-indigo-100 to-indigo-200 flex items-center justify-center p-8">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="w-full max-w-3xl bg-white/90 backdrop-blur-md p-8 rounded-2xl shadow-xl border border-indigo-100"
+      >
+        <h2 className="text-3xl font-bold text-indigo-700 mb-8 text-center">
+          {editingFeedback ? "Edit Your Feedback" : "Submit Your Feedback"}
+        </h2>
+
+        <form onSubmit={handleSubmit}>
+          {Object.keys(ratings).map((aspect) => (
+            <div key={aspect} className="mb-6">
+              <label className="block text-lg font-semibold text-gray-700 mb-2 capitalize">
+                {aspect.replace(/([A-Z])/g, " $1")}
+              </label>
+              <div className="flex gap-2">
+                {[1, 2, 3, 4, 5].map((num) => (
+                  <Star
+                    key={num}
+                    onClick={() => handleRating(aspect, num)}
+                    className={`w-7 h-7 cursor-pointer transition-transform ${
+                      num <= ratings[aspect]
+                        ? "text-yellow-400 fill-yellow-400 scale-110"
+                        : "text-gray-300 hover:text-yellow-300"
+                    }`}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+
+          <textarea
+            className="w-full border border-gray-200 rounded-xl p-4 h-32 focus:ring-2 focus:ring-indigo-500 mb-6 resize-none text-gray-700 shadow-sm"
+            placeholder="Share your feedback here..."
+            value={feedbackText}
+            onChange={(e) => setFeedbackText(e.target.value)}
+          ></textarea>
+
+          <div className="mb-6">
+            <label className="block text-sm font-semibold mb-2 text-gray-700">
+              Optional Image Attachment
+            </label>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleImageChange}
+              className="border border-gray-300 rounded-md p-2 w-full"
+            />
+            {image && (
+              <img
+                src={image}
+                alt="Preview"
+                className="mt-3 w-40 h-40 object-cover rounded-lg border border-gray-200 shadow"
+              />
+            )}
+          </div>
+
+          <div className="flex justify-center space-x-4 mt-8">
+            <PrimaryButton type="submit" className="bg-indigo-600 hover:bg-indigo-700">
+              <Send className="w-5 h-5 mr-2 inline" />
+              {editingFeedback ? "Update Feedback" : "Submit Feedback"}
+            </PrimaryButton>
+
+            <PrimaryButton
+              onClick={editingFeedback ? onCancelEdit : onBack}
+              className="bg-gray-400 hover:bg-gray-500"
+              type="button"
+            >
+              <ArrowLeft className="w-5 h-5 mr-2 inline" />
+              {editingFeedback ? "Cancel Edit" : "Back"}
+            </PrimaryButton>
+          </div>
+        </form>
+      </motion.div>
+    </div>
+  );
+};
+
+// --- Feedback List ---
+export const FeedbackList = ({ feedbackList, onBack, onDeleteFeedback, onEditFeedback }) => {
+  const [filterRating, setFilterRating] = useState("all");
+  const clearFilter = () => setFilterRating("all");
+
+  const filtered =
+    filterRating === "all"
+      ? feedbackList
+      : feedbackList.filter((f) => Math.floor(f.averageRating) >= parseInt(filterRating));
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-100 p-10">
+      <div className="max-w-5xl mx-auto bg-white/95 backdrop-blur-md p-10 rounded-2xl shadow-lg border border-gray-100">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-3xl font-bold text-indigo-700">My Feedback</h2>
+          <PrimaryButton onClick={onBack} className="bg-gray-400 hover:bg-gray-500">
+            Back
+          </PrimaryButton>
+        </div>
+
+        <div className="flex justify-end items-center gap-3 mb-5">
+          <select
+            className="border border-gray-300 rounded-lg px-3 py-2 text-gray-700 bg-gray-50 shadow-sm"
+            value={filterRating}
+            onChange={(e) => setFilterRating(e.target.value)}
+          >
+            <option value="all">All Ratings</option>
+            {[1, 2, 3, 4, 5].map((n) => (
+              <option key={n} value={n}>
+                {n}+ Stars
+              </option>
+            ))}
+          </select>
+          {filterRating !== "all" && (
+            <button
+              onClick={clearFilter}
+              className="text-sm text-red-500 hover:underline font-medium"
+            >
+              Clear Filter
+            </button>
+          )}
+        </div>
+
+        {filtered.length === 0 ? (
+          <p className="text-gray-500 text-center mt-8">No feedback available.</p>
+        ) : (
+          <div className="grid md:grid-cols-2 gap-6">
+            {filtered.map((fb) => (
+              <motion.div
+                key={fb.id}
+                whileHover={{ scale: 1.02 }}
+                className="border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-all bg-white"
+              >
+                <div className="flex justify-between mb-2 items-center">
+                  <div className="flex">
+                    {[...Array(5)].map((_, i) => (
+                      <Star
+                        key={i}
+                        className={`w-5 h-5 ${
+                          i < Math.round(fb.averageRating)
+                            ? "text-yellow-400 fill-yellow-400"
+                            : "text-gray-300"
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <p className="text-gray-400 text-sm">{fb.createdAt}</p>
+                </div>
+
+                <p className="text-gray-700 mb-3 leading-relaxed">{fb.feedbackText}</p>
+                {fb.image && (
+                  <img
+                    src={fb.image}
+                    alt="Feedback attachment"
+                    className="w-32 h-32 object-cover rounded-lg mb-3 shadow-sm"
+                  />
+                )}
+
+                <div className="flex space-x-4 text-sm font-medium">
+                  <button
+                    onClick={() => onEditFeedback(fb)}
+                    className="text-blue-500 hover:text-blue-700"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => onDeleteFeedback(fb.id)}
+                    className="text-red-500 hover:text-red-700"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// --- Feedback Viewer (Analytics) ---
+export const FeedbackViewer = ({ feedbackList, onBack, onMarkReviewed }) => {
+  const data = [1, 2, 3, 4, 5].map((r) => ({
+    rating: r,
+    count: feedbackList.filter((f) => Math.round(f.averageRating) === r).length,
+  }));
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-sky-100 p-10">
+      <div className="max-w-6xl mx-auto bg-white/95 backdrop-blur-md p-10 rounded-2xl shadow-lg border border-gray-100">
+        <div className="flex justify-between items-center mb-8">
+          <h2 className="text-3xl font-bold text-indigo-700">Feedback Analytics</h2>
+          <PrimaryButton onClick={onBack} className="bg-gray-400 hover:bg-gray-500">
+            Back
+          </PrimaryButton>
+        </div>
+
+        <div className="bg-gradient-to-r from-indigo-100 to-indigo-200 p-4 rounded-xl shadow-inner mb-8">
+          <ResponsiveContainer width="100%" height={250}>
+            <BarChart data={data}>
+              <XAxis dataKey="rating" />
+              <YAxis />
+              <Tooltip />
+              <Bar dataKey="count" fill="#4F46E5" radius={[6, 6, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div className="space-y-4">
+          {feedbackList.map((fb) => (
+            <motion.div
+              key={fb.id}
+              whileHover={{ scale: 1.01 }}
+              className="border border-gray-200 p-5 rounded-xl flex justify-between items-center shadow-sm hover:shadow-md bg-white"
+            >
+              <div>
+                <p className="text-gray-800 font-medium">{fb.feedbackText}</p>
+                <p className="text-gray-400 text-xs">{fb.createdAt}</p>
+              </div>
+              {!fb.reviewed && (
+                <PrimaryButton
+                  onClick={() => onMarkReviewed(fb.id)}
+                  className="bg-green-500 hover:bg-green-600"
+                >
+                  Mark Reviewed
+                </PrimaryButton>
+              )}
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // Dashboard Card Component for high-quality visuals
 const DashboardCard = ({ icon: Icon, title, description, color, onClick = () => {} }) => (
@@ -223,7 +531,7 @@ const DashboardCard = ({ icon: Icon, title, description, color, onClick = () => 
 );
 
 // Placeholder Student Dashboard
-const StudentDashboard = ({ onLogout }) => (
+const StudentDashboard = ({ onLogout, navigateToFeedback, navigateToFeedbackList }) => (
   <div className="p-8 bg-indigo-50 min-h-screen">
     <div className="max-w-7xl mx-auto">
         <h1 className="text-3xl font-extrabold text-indigo-700 mb-6 border-b pb-2">Student Portal - HostelFix</h1>
@@ -254,13 +562,27 @@ const StudentDashboard = ({ onLogout }) => (
                 description="Warden updates and maintenance schedules." 
                 color="text-green-500" 
             />
+            <DashboardCard
+                icon={Shield}
+                title="Submit Feedback"
+                description="Share your thoughts on how your complaint was handled."
+                color="text-green-500"
+                onClick={navigateToFeedback}
+            />
+            <DashboardCard
+                icon={Star}
+                title="My Feedback"
+                description="View and manage your submitted feedback."
+                color="text-yellow-500"
+                onClick={navigateToFeedbackList}
+            />
         </div>
     </div>
   </div>
 );
 
 // Placeholder Warden Dashboard
-const WardenDashboard = ({ onLogout }) => (
+const WardenDashboard = ({ onLogout, navigateToFeedbackView }) => (
   <div className="p-8 bg-gray-100 min-h-screen">
     <div className="max-w-7xl mx-auto">
         <h1 className="text-3xl font-extrabold text-gray-800 mb-6 border-b pb-2">Warden Portal - HostelFix Management</h1>
@@ -282,8 +604,9 @@ const WardenDashboard = ({ onLogout }) => (
             <DashboardCard 
                 icon={MessageSquare} 
                 title="Feedback Review" 
-                description="Analyze student satisfaction ratings (Module 3)." 
+                description="View student feedback and satisfaction ratings." 
                 color="text-indigo-500" 
+                onClick={navigateToFeedbackView}
             />
             <DashboardCard 
                 icon={Shield} 
@@ -299,30 +622,110 @@ const WardenDashboard = ({ onLogout }) => (
 // --- Main App Component ---
 
 const App = () => {
-  const [view, setView] = useState("login"); // 'login', 'student', 'warden'
+  const [view, setView] = useState("login"); // 'login', 'student', 'warden', etc.
+  const [feedbackList, setFeedbackList] = useState([]);
+  const [editingFeedback, setEditingFeedback] = useState(null); // NEW: track feedback being edited
 
-  const handleLoginSuccess = (role) => {
-    setView(role);
+  // --- Authentication ---
+  const handleLoginSuccess = (role) => setView(role);
+  const handleLogout = () => setView("login");
+
+  // --- Feedback Functions ---
+  const handleFeedbackSubmit = (feedback) => {
+    if (editingFeedback) {
+      // Update existing feedback
+      setFeedbackList((prev) =>
+        prev.map((f) => (f.id === feedback.id ? feedback : f))
+      );
+      setEditingFeedback(null);
+    } else {
+      // Add new feedback
+      setFeedbackList((prev) => [...prev, feedback]);
+    }
+    setView("studentFeedbackList");
   };
 
-  const handleLogout = () => {
-    setView("login");
+  const handleDeleteFeedback = (id) => {
+    setFeedbackList((prev) => prev.filter((f) => f.id !== id));
   };
 
+  const handleEditFeedback = (feedback) => {
+    setEditingFeedback(feedback);
+    setView("feedbackForm");
+  };
+
+  const handleCancelEdit = () => {
+    setEditingFeedback(null);
+    setView("studentFeedbackList");
+  };
+
+  const handleMarkReviewed = (id) => {
+    setFeedbackList((prev) =>
+      prev.map((f) =>
+        f.id === id ? { ...f, reviewed: true } : f
+      )
+    );
+  };
+
+  // --- View Controller ---
   const renderView = () => {
     switch (view) {
       case "student":
-        return <StudentDashboard onLogout={handleLogout} />;
+        return (
+          <StudentDashboard
+            navigateToFeedback={() => setView("feedbackForm")}
+            navigateToFeedbackList={() => setView("studentFeedbackList")}
+            onLogout={handleLogout}
+          />
+        );
+
       case "warden":
-        return <WardenDashboard onLogout={handleLogout} />;
+        return (
+          <WardenDashboard
+            navigateToFeedbackView={() => setView("feedbackViewer")}
+            onLogout={handleLogout}
+          />
+        );
+
       case "login":
+        return <LoginPage onLoginSuccess={handleLoginSuccess} />;
+
+      case "feedbackForm":
+        return (
+          <FeedbackForm
+            onBack={() => setView("student")}
+            onSubmitFeedback={handleFeedbackSubmit}
+            editingFeedback={editingFeedback}
+            onCancelEdit={handleCancelEdit}
+          />
+        );
+
+      case "feedbackViewer":
+        return (
+          <FeedbackViewer
+            feedbackList={feedbackList}
+            onBack={() => setView("warden")}
+            onMarkReviewed={handleMarkReviewed}
+          />
+        );
+
+      case "studentFeedbackList":
+        return (
+          <FeedbackList
+            feedbackList={feedbackList}
+            onBack={() => setView("student")}
+            onDeleteFeedback={handleDeleteFeedback}
+            onEditFeedback={handleEditFeedback}
+          />
+        );
+
       default:
         return <LoginPage onLoginSuccess={handleLoginSuccess} />;
     }
   };
 
   return (
-    <div className="min-h-screen font-sans">
+    <div className="min-h-screen font-sans bg-gray-50">
       {renderView()}
     </div>
   );
