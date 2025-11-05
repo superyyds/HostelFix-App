@@ -235,7 +235,6 @@ const LoginPage = ({ onLoginSuccess }) => {
 };
 
 // ---------------- Feedback Module ----------------
-
 export const FeedbackForm = ({ onBack, onSubmitFeedback, editingFeedback, onCancelEdit }) => {
   const [feedbackText, setFeedbackText] = useState(editingFeedback?.feedbackText || "");
   const [ratings, setRatings] = useState(
