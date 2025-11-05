@@ -1,7 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { LogIn, Home, Shield, AlertTriangle, MessageSquare, Briefcase, User, Mail, Users, Compass, Star, Send, Upload, Edit2, ArrowLeft } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { motion } from "framer-motion";
+import { collection, addDoc, getDocs, updateDoc, deleteDoc, doc } from "firebase/firestore";
+import { db } from "./firebaseConfig";
 
 // --- Custom Components for Enhanced UI ---
 
@@ -252,7 +254,13 @@ export const FeedbackForm = ({ onBack, onSubmitFeedback, editingFeedback, onCanc
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
-    if (file) setImage(URL.createObjectURL(file));
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImage(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleSubmit = (e) => {
@@ -266,13 +274,13 @@ export const FeedbackForm = ({ onBack, onSubmitFeedback, editingFeedback, onCanc
       Object.values(ratings).reduce((a, b) => a + b, 0) / Object.keys(ratings).length;
 
     const feedback = {
-      id: editingFeedback ? editingFeedback.id : Date.now(),
+      id: editingFeedback?.id || null, // preserve Firestore ID when editing
       feedbackText,
       ratings,
       averageRating: parseFloat(avg.toFixed(1)),
       image,
-      createdAt: new Date().toLocaleString(),
-      reviewed: false,
+      createdAt: editingFeedback?.createdAt || new Date().toLocaleString(), // keep original time if editing
+      reviewed: editingFeedback?.reviewed || false,
     };
 
     onSubmitFeedback(feedback);
@@ -629,23 +637,51 @@ const App = () => {
   const handleLoginSuccess = (role) => setView(role);
   const handleLogout = () => setView("login");
 
+  useEffect(() => {
+    const fetchFeedbacks = async () => {
+      try {
+        const querySnapshot = await getDocs(collection(db, "feedbacks"));
+        const data = querySnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setFeedbackList(data);
+      } catch (error) {
+        console.error("Error fetching feedbacks: ", error);
+      }
+    };
+
+    fetchFeedbacks();
+  }, []);
+
+
   // --- Feedback Functions ---
-  const handleFeedbackSubmit = (feedback) => {
-    if (editingFeedback) {
-      // Update existing feedback
-      setFeedbackList((prev) =>
-        prev.map((f) => (f.id === feedback.id ? feedback : f))
-      );
-      setEditingFeedback(null);
-    } else {
-      // Add new feedback
-      setFeedbackList((prev) => [...prev, feedback]);
+  const handleFeedbackSubmit = async (feedback) => {
+    try {
+      if (editingFeedback) {
+        // Update existing feedback
+        const feedbackRef = doc(db, "feedbacks", feedback.id.toString());
+        await updateDoc(feedbackRef, feedback);
+        setFeedbackList((prev) => prev.map((f) => (f.id === feedback.id ? feedback : f)));
+        setEditingFeedback(null);
+      } else {
+        // Add new feedback
+        const docRef = await addDoc(collection(db, "feedbacks"), feedback);
+        setFeedbackList((prev) => [...prev, { ...feedback, id: docRef.id }]);
+      }
+      setView("studentFeedbackList");
+    } catch (error) {
+      console.error("Error adding feedback: ", error);
     }
-    setView("studentFeedbackList");
   };
 
-  const handleDeleteFeedback = (id) => {
-    setFeedbackList((prev) => prev.filter((f) => f.id !== id));
+  const handleDeleteFeedback = async (id) => {
+    try {
+      await deleteDoc(doc(db, "feedbacks", id.toString()));
+      setFeedbackList((prev) => prev.filter((f) => f.id !== id));
+    } catch (error) {
+      console.error("Error deleting feedback: ", error);
+    }
   };
 
   const handleEditFeedback = (feedback) => {
@@ -658,12 +694,20 @@ const App = () => {
     setView("studentFeedbackList");
   };
 
-  const handleMarkReviewed = (id) => {
-    setFeedbackList((prev) =>
-      prev.map((f) =>
-        f.id === id ? { ...f, reviewed: true } : f
-      )
-    );
+  const handleMarkReviewed = async (id) => {
+    try {
+      const feedbackRef = doc(db, "feedbacks", id);
+      await updateDoc(feedbackRef, { reviewed: true }); // update Firestore
+
+      // update UI locally too
+      setFeedbackList((prev) =>
+        prev.map((f) =>
+          f.id === id ? { ...f, reviewed: true } : f
+        )
+      );
+    } catch (error) {
+      console.error("Error marking feedback as reviewed: ", error);
+    }
   };
 
   // --- View Controller ---
