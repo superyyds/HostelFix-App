@@ -1670,8 +1670,19 @@ const App = () => {
   const [selected, setSelected] = useState(null);
   const [feedbackList, setFeedbackList] = useState([]);
   const [editingFeedback, setEditingFeedback] = useState(null); // NEW: track feedback being edited
+  // Global message state for toast notifications
+  const [isMessageVisible, setIsMessageVisible] = useState(false);
+  const [message, setMessage] = useState({ title: "", text: "", type: "" });
 
-    useEffect(() => {
+  const showMessage = (title, text, type = "success", durationMs = 2500) => {
+    setMessage({ title, text, type });
+    setIsMessageVisible(true);
+    if (durationMs > 0) {
+      setTimeout(() => setIsMessageVisible(false), durationMs);
+    }
+  };
+
+  useEffect(() => {
     const fetchFeedbacks = async () => {
       try {
         const querySnapshot = await getDocs(collection(db, "feedbacks"));
@@ -1705,6 +1716,7 @@ const App = () => {
 
   const handleCreateComplaint = (complaint) => {
     setComplaints((prev) => [complaint, ...prev]);
+    showMessage("Complaint Submitted", "Your complaint has been submitted successfully.", "success");
   };
 
   const handleUpdateComplaint = (id, updates) => {
@@ -1715,19 +1727,20 @@ const App = () => {
   const handleFeedbackSubmit = async (feedback) => {
     try {
       if (editingFeedback) {
-        // Update existing feedback
         const feedbackRef = doc(db, "feedbacks", feedback.id.toString());
         await updateDoc(feedbackRef, feedback);
         setFeedbackList((prev) => prev.map((f) => (f.id === feedback.id ? feedback : f)));
         setEditingFeedback(null);
+        showMessage("Feedback Updated", "Your feedback has been updated.", "success");
       } else {
-        // Add new feedback
         const docRef = await addDoc(collection(db, "feedbacks"), feedback);
         setFeedbackList((prev) => [...prev, { ...feedback, id: docRef.id }]);
+        showMessage("Feedback Submitted", "Thank you! Your feedback has been submitted.", "success");
       }
       setView("studentFeedbackList");
     } catch (error) {
       console.error("Error adding feedback: ", error);
+      showMessage("Action Failed", "Could not submit feedback. Please try again.", "error", 2500);
     }
   };
 
@@ -1735,8 +1748,10 @@ const App = () => {
     try {
       await deleteDoc(doc(db, "feedbacks", id.toString()));
       setFeedbackList((prev) => prev.filter((f) => f.id !== id));
+      showMessage("Feedback Deleted", "Your feedback has been removed.", "success");
     } catch (error) {
       console.error("Error deleting feedback: ", error);
+      showMessage("Delete Failed", "Could not delete feedback.", "error", 2500);
     }
   };
 
@@ -1753,16 +1768,12 @@ const App = () => {
   const handleMarkReviewed = async (id) => {
     try {
       const feedbackRef = doc(db, "feedbacks", id);
-      await updateDoc(feedbackRef, { reviewed: true }); // update Firestore
-
-      // update UI locally too
-      setFeedbackList((prev) =>
-        prev.map((f) =>
-          f.id === id ? { ...f, reviewed: true } : f
-        )
-      );
+      await updateDoc(feedbackRef, { reviewed: true });
+      setFeedbackList((prev) => prev.map((f) => (f.id === id ? { ...f, reviewed: true } : f)));
+      showMessage("Marked Reviewed", "Feedback marked as reviewed.", "success");
     } catch (error) {
       console.error("Error marking feedback as reviewed: ", error);
+      showMessage("Update Failed", "Could not mark as reviewed.", "error", 2500);
     }
   };
 
@@ -1835,6 +1846,14 @@ const App = () => {
 
   return (
     <div className="min-h-screen font-sans bg-gray-50">
+      {isMessageVisible && (
+        <MessageBox
+          title={message.title}
+          text={message.text}
+          type={message.type}
+          onClose={() => setIsMessageVisible(false)}
+        />
+      )}
       {renderView()}
     </div>
   );
