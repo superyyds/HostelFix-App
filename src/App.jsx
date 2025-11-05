@@ -10,7 +10,7 @@ const PrimaryButton = ({ children, onClick, disabled = false, type = 'button', c
     disabled={disabled}
     type={type}
     className={`
-      w-full py-3 px-4 font-semibold text-lg tracking-wider
+      py-3 px-4 font-semibold text-lg tracking-wider
       bg-indigo-600 text-white rounded-lg shadow-lg
       transition duration-300 ease-in-out transform
       hover:bg-indigo-700 hover:shadow-xl active:scale-95
@@ -188,7 +188,7 @@ const LoginPage = ({ onLoginSuccess }) => {
           />
 
           <div className="mt-8">
-            <PrimaryButton type="submit">
+            <PrimaryButton type="submit" className="w-full">
               Sign In
             </PrimaryButton>
           </div>
@@ -299,13 +299,16 @@ const WardenDashboard = ({ onLogout }) => (
 // --- Main App Component ---
 
 const App = () => {
-  const [view, setView] = useState("login"); // 'login', 'student', 'warden'
+  // Initialize from localStorage, fallback to 'login'
+  const [view, setView] = useState(() => localStorage.getItem("userRole") || "login"); // 'login', 'student', 'warden'
 
   const handleLoginSuccess = (role) => {
+    localStorage.setItem("userRole", role); // Save role persistently
     setView(role);
   };
 
   const handleLogout = () => {
+    localStorage.removeItem("userRole"); // Clear persistent role on logout
     setView("login");
   };
 
