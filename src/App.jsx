@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { LogIn, Home, Shield, AlertTriangle, MessageSquare, Briefcase, User, Mail, Users, Compass, Star, Send, Upload, Edit2, ArrowLeft } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { LogIn, Home, Shield, AlertTriangle, MessageSquare, Briefcase, User, Mail, Users, Compass, Star, Send, Upload, Edit2, ArrowLeft, CheckCircle, Loader } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { motion } from "framer-motion";
 import { collection, addDoc, getDocs, updateDoc, deleteDoc, doc } from "firebase/firestore";
 import { db } from "./firebaseConfig";
@@ -247,6 +247,20 @@ export const FeedbackForm = ({ onBack, onSubmitFeedback, editingFeedback, onCanc
     }
   );
   const [image, setImage] = useState(editingFeedback?.image || null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [messageBox, setMessageBox] = useState({ visible: false, type: "", text: "" });
+
+  useEffect(() => {
+    if (editingFeedback) {
+      setFeedbackText(editingFeedback.feedbackText || "");
+      setRatings(editingFeedback.ratings || {
+        responseTime: 0,
+        serviceQuality: 0,
+        communication: 0,
+      });
+      setImage(editingFeedback.image || null);
+    }
+  }, [editingFeedback]);
 
   const handleRating = (aspect, value) => {
     setRatings((prev) => ({ ...prev, [aspect]: value }));
@@ -255,38 +269,105 @@ export const FeedbackForm = ({ onBack, onSubmitFeedback, editingFeedback, onCanc
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
+      const allowedTypes = ["image/jpeg", "image/png", "image/jpg"];
+      const maxSize = 1 * 1024 * 1024; // 1MB
+      if (!allowedTypes.includes(file.type)) {
+        setMessageBox({ visible: true, type: "error", text: "Only JPG and PNG images are allowed." });
+        e.target.value = "";
+        return;
+      }
+      if (file.size > maxSize) {
+        setMessageBox({ visible: true, type: "error", text: "Image size must be under 1MB." });
+        e.target.value = "";
+        return;
+      }
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setImage(reader.result);
-      };
+      reader.onloadend = () => setImage(reader.result);
       reader.readAsDataURL(file);
     }
   };
 
-  const handleSubmit = (e) => {
+  const validateForm = () => {
+    const hasMissingRatings = Object.values(ratings).some((r) => r === 0);
+    if (hasMissingRatings) {
+      setMessageBox({ visible: true, type: "error", text: "Please rate all categories before submitting." });
+      return false;
+    }
+    if (feedbackText.trim().length < 10) {
+      setMessageBox({ visible: true, type: "error", text: "Feedback must be at least 10 characters long." });
+      return false;
+    }
+    return true;
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!feedbackText || Object.values(ratings).some((r) => r === 0)) {
-      alert("Please rate all aspects and provide feedback.");
+
+    // --- VALIDATION SECTION ---
+    if (!feedbackText.trim() || Object.values(ratings).some((r) => r === 0)) {
+      setMessageBox({
+        visible: true,
+        type: "error",
+        text: "Please rate all aspects and provide your feedback before submitting.",
+      });
       return;
     }
 
-    const avg =
-      Object.values(ratings).reduce((a, b) => a + b, 0) / Object.keys(ratings).length;
+    if (feedbackText.trim().length < 10) {
+      setMessageBox({
+        visible: true,
+        type: "error",
+        text: "Feedback must be at least 10 characters long.",
+      });
+      return;
+    }
 
-    const feedback = {
-      id: editingFeedback?.id || null, // preserve Firestore ID when editing
-      feedbackText,
-      ratings,
-      averageRating: parseFloat(avg.toFixed(1)),
-      image,
-      createdAt: editingFeedback?.createdAt || new Date().toLocaleString(), // keep original time if editing
-      reviewed: editingFeedback?.reviewed || false,
-    };
+    setIsSubmitting(true);
 
-    onSubmitFeedback(feedback);
-    setFeedbackText("");
-    setRatings({ responseTime: 0, serviceQuality: 0, communication: 0 });
-    setImage(null);
+    try {
+      const avg =
+        Object.values(ratings).reduce((a, b) => a + b, 0) / Object.keys(ratings).length;
+
+      const feedback = {
+        ...(editingFeedback || {}),
+        feedbackText,
+        ratings,
+        averageRating: parseFloat(avg.toFixed(1)),
+        image,
+        createdAt: editingFeedback?.createdAt || new Date().toLocaleString(),
+        reviewed: editingFeedback?.reviewed || false,
+      };
+
+      // Save or update Firestore through your callback
+      await onSubmitFeedback(feedback);
+
+      // Show success message
+      setMessageBox({
+        visible: true,
+        type: "success",
+        text: editingFeedback
+          ? "Your feedback has been updated successfully."
+          : "Thank you! Your feedback has been submitted successfully.",
+      });
+
+      setTimeout(() => {
+        setIsSubmitting(false);
+      }, 1200);
+
+      // Reset form
+      setFeedbackText("");
+      setRatings({ responseTime: 0, serviceQuality: 0, communication: 0 });
+      setImage(null);
+    } catch (error) {
+      console.error("Feedback submission failed:", error);
+      setMessageBox({
+        visible: true,
+        type: "error",
+        text: "An error occurred while submitting feedback. Please try again later.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -349,9 +430,22 @@ export const FeedbackForm = ({ onBack, onSubmitFeedback, editingFeedback, onCanc
           </div>
 
           <div className="flex justify-center space-x-4 mt-8">
-            <PrimaryButton type="submit" className="bg-indigo-600 hover:bg-indigo-700">
-              <Send className="w-5 h-5 mr-2 inline" />
-              {editingFeedback ? "Update Feedback" : "Submit Feedback"}
+            <PrimaryButton 
+              type="submit" 
+              className="bg-indigo-600 hover:bg-indigo-700"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader className="w-5 h-5 mr-2 inline animate-spin" />
+                  Submitting...
+                </>
+              ) : (
+                <>
+                  <Send className="w-5 h-5 mr-2 inline" />
+                  {editingFeedback ? "Update Feedback" : "Submit Feedback"}
+                </>
+              )}
             </PrimaryButton>
 
             <PrimaryButton
@@ -364,6 +458,26 @@ export const FeedbackForm = ({ onBack, onSubmitFeedback, editingFeedback, onCanc
             </PrimaryButton>
           </div>
         </form>
+        {messageBox.visible && (
+          <div
+            className={`fixed top-5 right-5 z-50 flex items-center gap-3 p-4 rounded-lg shadow-lg transition-all ${
+              messageBox.type === "success" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+            }`}
+          >
+            {messageBox.type === "success" ? (
+              <CheckCircle className="w-5 h-5" />
+            ) : (
+              <AlertTriangle className="w-5 h-5" />
+            )}
+            <span className="font-medium">{messageBox.text}</span>
+            <button
+              onClick={() => setMessageBox({ ...messageBox, visible: false })}
+              className="ml-3 text-sm underline hover:opacity-80"
+            >
+              Close
+            </button>
+          </div>
+        )}
       </motion.div>
     </div>
   );
@@ -470,16 +584,52 @@ export const FeedbackList = ({ feedbackList, onBack, onDeleteFeedback, onEditFee
   );
 };
 
-// --- Feedback Viewer (Analytics) ---
+// --- Feedback Viewer (Enhanced Analytics) ---
 export const FeedbackViewer = ({ feedbackList, onBack, onMarkReviewed }) => {
+  // --- Compute Rating Distribution Data ---
   const data = [1, 2, 3, 4, 5].map((r) => ({
     rating: r,
     count: feedbackList.filter((f) => Math.round(f.averageRating) === r).length,
   }));
 
+  // --- Compute Average Overall Rating ---
+  const avgRating =
+    feedbackList.length > 0
+      ? feedbackList.reduce((sum, f) => sum + (f.averageRating || 0), 0) / feedbackList.length
+      : 0;
+
+  // --- Compute Average by Category (Response, Service, Communication) ---
+  const categoryData = [
+    {
+      aspect: "Response Time",
+      avg:
+        feedbackList.length > 0
+          ? feedbackList.reduce((sum, f) => sum + (f.ratings?.responseTime || 0), 0) /
+            feedbackList.length
+          : 0,
+    },
+    {
+      aspect: "Service Quality",
+      avg:
+        feedbackList.length > 0
+          ? feedbackList.reduce((sum, f) => sum + (f.ratings?.serviceQuality || 0), 0) /
+            feedbackList.length
+          : 0,
+    },
+    {
+      aspect: "Communication",
+      avg:
+        feedbackList.length > 0
+          ? feedbackList.reduce((sum, f) => sum + (f.ratings?.communication || 0), 0) /
+            feedbackList.length
+          : 0,
+    },
+  ];
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-sky-100 p-10">
       <div className="max-w-6xl mx-auto bg-white/95 backdrop-blur-md p-10 rounded-2xl shadow-lg border border-gray-100">
+        {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <h2 className="text-3xl font-bold text-indigo-700">Feedback Analytics</h2>
           <PrimaryButton onClick={onBack} className="bg-gray-400 hover:bg-gray-500">
@@ -487,17 +637,62 @@ export const FeedbackViewer = ({ feedbackList, onBack, onMarkReviewed }) => {
           </PrimaryButton>
         </div>
 
-        <div className="bg-gradient-to-r from-indigo-100 to-indigo-200 p-4 rounded-xl shadow-inner mb-8">
+        {/* --- Summary Section --- */}
+        <div className="grid md:grid-cols-3 gap-6 mb-10 text-center">
+          <div className="bg-indigo-50 p-6 rounded-xl shadow-sm">
+            <p className="text-gray-500 text-sm">Total Feedbacks</p>
+            <h3 className="text-3xl font-bold text-indigo-700">{feedbackList.length}</h3>
+          </div>
+          <div className="bg-indigo-50 p-6 rounded-xl shadow-sm">
+            <p className="text-gray-500 text-sm">Average Satisfaction</p>
+            <h3 className="text-3xl font-bold text-green-600">
+              {avgRating.toFixed(1)} / 5
+            </h3>
+          </div>
+          <div className="bg-indigo-50 p-6 rounded-xl shadow-sm">
+            <p className="text-gray-500 text-sm">Last Updated</p>
+            <h3 className="text-lg font-semibold text-gray-700">
+              {new Date().toLocaleDateString()}
+            </h3>
+          </div>
+        </div>
+
+        {/* --- Rating Distribution Chart --- */}
+        <div className="bg-gradient-to-r from-indigo-100 to-indigo-200 p-4 rounded-xl shadow-inner mb-10">
+          <h3 className="text-xl font-semibold text-indigo-800 mb-3">
+            Rating Distribution
+          </h3>
           <ResponsiveContainer width="100%" height={250}>
             <BarChart data={data}>
+              <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="rating" />
               <YAxis />
               <Tooltip />
-              <Bar dataKey="count" fill="#4F46E5" radius={[6, 6, 0, 0]} />
+              <Legend />
+              <Bar dataKey="count" fill="#4F46E5" radius={[6, 6, 0, 0]} name="Feedback Count" />
             </BarChart>
           </ResponsiveContainer>
         </div>
 
+        {/* --- Aspect Comparison Chart --- */}
+        <div className="bg-gradient-to-r from-indigo-100 to-sky-200 p-4 rounded-xl shadow-inner mb-10">
+          <h3 className="text-xl font-semibold text-indigo-800 mb-3">
+            Average Ratings by Aspect
+          </h3>
+          <ResponsiveContainer width="100%" height={250}>
+            <BarChart data={categoryData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="aspect" />
+              <YAxis domain={[0, 5]} />
+              <Tooltip />
+              <Legend />
+              <Bar dataKey="avg" fill="#22C55E" radius={[6, 6, 0, 0]} name="Average Rating" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* --- Feedback List Section --- */}
+        <h3 className="text-2xl font-semibold text-indigo-700 mb-4">Recent Feedback</h3>
         <div className="space-y-4">
           {feedbackList.map((fb) => (
             <motion.div
@@ -507,7 +702,9 @@ export const FeedbackViewer = ({ feedbackList, onBack, onMarkReviewed }) => {
             >
               <div>
                 <p className="text-gray-800 font-medium">{fb.feedbackText}</p>
-                <p className="text-gray-400 text-xs">{fb.createdAt}</p>
+                <p className="text-gray-500 text-sm">
+                  Avg: {fb.averageRating?.toFixed(1)} / 5 • {fb.createdAt}
+                </p>
               </div>
               {!fb.reviewed && (
                 <PrimaryButton
