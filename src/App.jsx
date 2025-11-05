@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo, useRef, useEffect } from "react";
+import React, { useState, useMemo, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
-import { LogIn, Home, Shield, AlertTriangle, MessageSquare, Briefcase, User, Mail, Compass, Star, Send, Upload, Edit2, ArrowLeft, CheckCircle, Loader, X, Image as ImageIcon, CheckCircle, MapPin, Filter, SortAsc, UserCog, ClipboardList, FileText, Send } from "lucide-react";
+import { LogIn, Home, Shield, AlertTriangle, MessageSquare, Briefcase, User, Mail, Compass, Star, Upload, Edit2, ArrowLeft, CheckCircle, Loader, X, Image as ImageIcon, MapPin, Filter, SortAsc, UserCog, ClipboardList, FileText, Send } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { collection, addDoc, getDocs, updateDoc, deleteDoc, doc } from "firebase/firestore";
 import { db } from "./firebaseConfig";
@@ -1710,7 +1710,27 @@ const App = () => {
     setComplaints(prev => prev.map(c => c._id === id ? { ...c, ...updates } : c));
   };
 
-    const handleDeleteFeedback = async (id) => {
+  // --- Feedback Functions ---
+  const handleFeedbackSubmit = async (feedback) => {
+    try {
+      if (editingFeedback) {
+        // Update existing feedback
+        const feedbackRef = doc(db, "feedbacks", feedback.id.toString());
+        await updateDoc(feedbackRef, feedback);
+        setFeedbackList((prev) => prev.map((f) => (f.id === feedback.id ? feedback : f)));
+        setEditingFeedback(null);
+      } else {
+        // Add new feedback
+        const docRef = await addDoc(collection(db, "feedbacks"), feedback);
+        setFeedbackList((prev) => [...prev, { ...feedback, id: docRef.id }]);
+      }
+      setView("studentFeedbackList");
+    } catch (error) {
+      console.error("Error adding feedback: ", error);
+    }
+  };
+
+  const handleDeleteFeedback = async (id) => {
     try {
       await deleteDoc(doc(db, "feedbacks", id.toString()));
       setFeedbackList((prev) => prev.filter((f) => f.id !== id));
@@ -1745,6 +1765,7 @@ const App = () => {
     }
   };
 
+  // --- View Controller ---
   const renderView = () => {
     switch (view) {
       case "student":
