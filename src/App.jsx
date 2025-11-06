@@ -379,97 +379,124 @@ export const FeedbackForm = ({ onBack, onSubmitFeedback, editingFeedback, onCanc
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-100 to-indigo-200 flex items-center justify-center p-8">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-3xl bg-white/90 backdrop-blur-md p-8 rounded-2xl shadow-xl border border-indigo-100"
-      >
-        <h2 className="text-3xl font-bold text-indigo-700 mb-8 text-center">
-          {editingFeedback ? "Edit Your Feedback" : "Submit Your Feedback"}
-        </h2>
+    <div className="min-h-screen bg-gradient-to-br from-indigo-100 to-indigo-200 py-10">
+      <div className="max-w-7xl mx-auto px-6">
+        {/* --- Header Section --- */}
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-3xl font-extrabold text-indigo-700">
+              {editingFeedback ? "Edit Feedback" : "Submit Feedback"}
+            </h1>
+            <p className="text-gray-600 mt-1">
+              Share your thoughts and help us improve our hostel services.
+            </p>
+          </div>
+        </div>
 
-        <form onSubmit={handleSubmit}>
-          {Object.keys(ratings).map((aspect) => (
-            <div key={aspect} className="mb-6">
-              <label className="block text-lg font-semibold text-gray-700 mb-2 capitalize">
-                {aspect.replace(/([A-Z])/g, " $1")}
-              </label>
-              <div className="flex gap-2">
-                {[1, 2, 3, 4, 5].map((num) => (
-                  <Star
-                    key={num}
-                    onClick={() => handleRating(aspect, num)}
-                    className={`w-7 h-7 cursor-pointer transition-transform ${
-                      num <= ratings[aspect]
-                        ? "text-yellow-400 fill-yellow-400 scale-110"
-                        : "text-gray-300 hover:text-yellow-300"
-                    }`}
-                  />
-                ))}
-              </div>
+        {/* --- Form Card --- */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+          className="bg-white shadow-2xl rounded-2xl p-10 border border-indigo-100"
+        >
+          <h2 className="text-2xl font-bold text-indigo-700 mb-8 text-center">
+            {editingFeedback ? "Edit Your Feedback" : "Submit Your Feedback"}
+          </h2>
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Rating Fields */}
+            <div className="space-y-6">
+              {Object.keys(ratings).map((aspect) => (
+                <div key={aspect}>
+                  <label className="block text-lg font-semibold text-gray-700 mb-2 capitalize">
+                    {aspect.replace(/([A-Z])/g, " $1")}
+                  </label>
+                  <div className="flex gap-2">
+                    {[1, 2, 3, 4, 5].map((num) => (
+                      <Star
+                        key={num}
+                        onClick={() => handleRating(aspect, num)}
+                        className={`w-7 h-7 cursor-pointer transition-transform ${
+                          num <= ratings[aspect]
+                            ? "text-yellow-400 fill-yellow-400 scale-110"
+                            : "text-gray-300 hover:text-yellow-300"
+                        }`}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
 
-          <textarea
-            className="w-full border border-gray-200 rounded-xl p-4 h-32 focus:ring-2 focus:ring-indigo-500 mb-6 resize-none text-gray-700 shadow-sm"
-            placeholder="Share your feedback here..."
-            value={feedbackText}
-            onChange={(e) => setFeedbackText(e.target.value)}
-          ></textarea>
+            {/* Feedback Text */}
+            <div>
+              <textarea
+                className="w-full border border-gray-200 rounded-xl p-4 h-32 focus:ring-2 focus:ring-indigo-500 resize-none text-gray-700 shadow-sm"
+                placeholder="Share your feedback here..."
+                value={feedbackText}
+                onChange={(e) => setFeedbackText(e.target.value)}
+              ></textarea>
+            </div>
 
-          <div className="mb-6">
-            <label className="block text-sm font-semibold mb-2 text-gray-700">
-              Optional Image Attachment
-            </label>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleImageChange}
-              className="border border-gray-300 rounded-md p-2 w-full"
-            />
-            {image && (
-              <img
-                src={image}
-                alt="Preview"
-                className="mt-3 w-40 h-40 object-cover rounded-lg border border-gray-200 shadow"
+            {/* Image Upload */}
+            <div>
+              <label className="block text-sm font-semibold mb-2 text-gray-700">
+                Optional Image Attachment
+              </label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
+                className="border border-gray-300 rounded-md p-2 w-full"
               />
-            )}
-          </div>
-
-          <div className="flex justify-center space-x-4 mt-8">
-            <PrimaryButton 
-              type="submit" 
-              className="bg-indigo-600 hover:bg-indigo-700"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader className="w-5 h-5 mr-2 inline animate-spin" />
-                  Submitting...
-                </>
-              ) : (
-                <>
-                  <Send className="w-5 h-5 mr-2 inline" />
-                  {editingFeedback ? "Update Feedback" : "Submit Feedback"}
-                </>
+              {image && (
+                <img
+                  src={image}
+                  alt="Preview"
+                  className="mt-3 w-40 h-40 object-cover rounded-lg border border-gray-200 shadow"
+                />
               )}
-            </PrimaryButton>
+            </div>
 
-            <PrimaryButton
-              onClick={editingFeedback ? onCancelEdit : onBack}
-              className="bg-gray-400 hover:bg-gray-500"
-              type="button"
-            >
-              <ArrowLeft className="w-5 h-5 mr-2 inline" />
-              {editingFeedback ? "Cancel Edit" : "Back"}
-            </PrimaryButton>
-          </div>
-        </form>
+            {/* Buttons */}
+            <div className="flex justify-center space-x-4 pt-4">
+              <PrimaryButton
+                type="submit"
+                className="bg-indigo-600 hover:bg-indigo-700"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader className="w-5 h-5 mr-2 inline animate-spin" />
+                    Submitting...
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-5 h-5 mr-2 inline" />
+                    {editingFeedback ? "Update Feedback" : "Submit Feedback"}
+                  </>
+                )}
+              </PrimaryButton>
+              <PrimaryButton
+                onClick={editingFeedback ? onCancelEdit : onBack}
+                className="bg-gray-400 hover:bg-gray-500"
+                type="button"
+              >
+                <ArrowLeft className="w-5 h-5 mr-2 inline" />
+                {editingFeedback ? "Cancel Edit" : "Back"}
+              </PrimaryButton>
+            </div>
+          </form>
+        </motion.div>
+
+        {/* --- Message Box --- */}
         {messageBox.visible && (
           <div
-            className={`fixed top-5 right-5 z-50 flex items-center gap-3 p-4 rounded-lg shadow-lg transition-all ${
-              messageBox.type === "success" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+            className={`fixed top-6 right-6 z-50 flex items-center gap-3 p-4 rounded-lg shadow-lg transition-all ${
+              messageBox.type === "success"
+                ? "bg-green-100 text-green-700"
+                : "bg-red-100 text-red-700"
             }`}
           >
             {messageBox.type === "success" ? (
@@ -486,7 +513,7 @@ export const FeedbackForm = ({ onBack, onSubmitFeedback, editingFeedback, onCanc
             </button>
           </div>
         )}
-      </motion.div>
+      </div>
     </div>
   );
 };
@@ -502,91 +529,123 @@ export const FeedbackList = ({ feedbackList, onBack, onDeleteFeedback, onEditFee
       : feedbackList.filter((f) => Math.floor(f.averageRating) >= parseInt(filterRating));
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-100 p-10">
-      <div className="max-w-5xl mx-auto bg-white/95 backdrop-blur-md p-10 rounded-2xl shadow-lg border border-gray-100">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-3xl font-bold text-indigo-700">My Feedback</h2>
-          <PrimaryButton onClick={onBack} className="bg-gray-400 hover:bg-gray-500">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-100 to-indigo-200 py-10">
+      <div className="max-w-7xl mx-auto px-6">
+        {/* --- Header Section --- */}
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-3xl font-extrabold text-indigo-700">
+              My Feed
+            </h1>
+            <p className="text-gray-600 mt-1">
+              View, edit, or delete your submitted feedback.
+            </p>
+          </div>
+          <PrimaryButton
+            onClick={onBack}
+            className="mt-4 md:mt-0 bg-indigo-600 hover:bg-indigo-700 transition-colors duration-200"
+          >
             Back
           </PrimaryButton>
         </div>
 
-        <div className="flex justify-end items-center gap-3 mb-5">
-          <select
-            className="border border-gray-300 rounded-lg px-3 py-2 text-gray-700 bg-gray-50 shadow-sm"
-            value={filterRating}
-            onChange={(e) => setFilterRating(e.target.value)}
-          >
-            <option value="all">All Ratings</option>
-            {[1, 2, 3, 4, 5].map((n) => (
-              <option key={n} value={n}>
-                {n}+ Stars
-              </option>
-            ))}
-          </select>
-          {filterRating !== "all" && (
-            <button
-              onClick={clearFilter}
-              className="text-sm text-red-500 hover:underline font-medium"
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+          className="bg-white shadow-2xl rounded-2xl p-10 border border-indigo-100"
+        >
+          {/* Filter Section */}
+          <div className="flex flex-wrap justify-end items-center gap-3 mb-8">
+            <select
+              className="border border-gray-300 rounded-xl px-4 py-2 bg-gray-50 text-gray-700 shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
+              value={filterRating}
+              onChange={(e) => setFilterRating(e.target.value)}
             >
-              Clear Filter
-            </button>
-          )}
-        </div>
-
-        {filtered.length === 0 ? (
-          <p className="text-gray-500 text-center mt-8">No feedback available.</p>
-        ) : (
-          <div className="grid md:grid-cols-2 gap-6">
-            {filtered.map((fb) => (
-              <motion.div
-                key={fb.id}
-                whileHover={{ scale: 1.02 }}
-                className="border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-all bg-white"
+              <option value="all">All Ratings</option>
+              {[1, 2, 3, 4, 5].map((n) => (
+                <option key={n} value={n}>
+                  {n}+ Stars
+                </option>
+              ))}
+            </select>
+            {filterRating !== "all" && (
+              <button
+                onClick={clearFilter}
+                className="text-sm text-red-500 hover:text-red-700 font-medium underline"
               >
-                <div className="flex justify-between mb-2 items-center">
-                  <div className="flex">
-                    {[...Array(5)].map((_, i) => (
-                      <Star
-                        key={i}
-                        className={`w-5 h-5 ${
-                          i < Math.round(fb.averageRating)
-                            ? "text-yellow-400 fill-yellow-400"
-                            : "text-gray-300"
-                        }`}
-                      />
-                    ))}
-                  </div>
-                  <p className="text-gray-400 text-sm">{fb.createdAt}</p>
-                </div>
-
-                <p className="text-gray-700 mb-3 leading-relaxed">{fb.feedbackText}</p>
-                {fb.image && (
-                  <img
-                    src={fb.image}
-                    alt="Feedback attachment"
-                    className="w-32 h-32 object-cover rounded-lg mb-3 shadow-sm"
-                  />
-                )}
-
-                <div className="flex space-x-4 text-sm font-medium">
-                  <button
-                    onClick={() => onEditFeedback(fb)}
-                    className="text-blue-500 hover:text-blue-700"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => onDeleteFeedback(fb.id)}
-                    className="text-red-500 hover:text-red-700"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </motion.div>
-            ))}
+                Clear Filter
+              </button>
+            )}
           </div>
-        )}
+
+          {/* Feedback List */}
+          {filtered.length === 0 ? (
+            <p className="text-gray-500 text-center mt-10 text-lg font-medium">
+              No feedback available.
+            </p>
+          ) : (
+            <div className="grid sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {filtered.map((fb) => (
+                <motion.div
+                  key={fb.id}
+                  whileHover={{ scale: 1.02 }}
+                  transition={{ duration: 0.2 }}
+                  className="rounded-2xl border border-gray-200 bg-white p-6 shadow-md hover:shadow-lg transition-all duration-200"
+                >
+                  {/* Rating & Date */}
+                  <div className="flex justify-between items-center mb-3">
+                    <div className="flex">
+                      {[...Array(5)].map((_, i) => (
+                        <Star
+                          key={i}
+                          className={`w-5 h-5 ${
+                            i < Math.round(fb.averageRating)
+                              ? "text-yellow-400 fill-yellow-400"
+                              : "text-gray-300"
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    <span className="text-gray-400 text-sm">{fb.createdAt}</span>
+                  </div>
+
+                  {/* Feedback Text */}
+                  <p className="text-gray-700 leading-relaxed mb-4 text-base">
+                    {fb.feedbackText}
+                  </p>
+
+                  {/* Image (Optional) */}
+                  {fb.image && (
+                    <div className="flex justify-center mb-4">
+                      <img
+                        src={fb.image}
+                        alt="Feedback attachment"
+                        className="w-40 h-40 object-cover rounded-xl shadow-sm border border-gray-200"
+                      />
+                    </div>
+                  )}
+
+                  {/* Action Buttons */}
+                  <div className="flex justify-center gap-6 text-sm font-semibold">
+                    <button
+                      onClick={() => onEditFeedback(fb)}
+                      className="text-indigo-600 hover:text-indigo-800 transition-colors"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => onDeleteFeedback(fb.id)}
+                      className="text-red-500 hover:text-red-700 transition-colors"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          )}
+        </motion.div>
       </div>
     </div>
   );
@@ -635,96 +694,117 @@ export const FeedbackViewer = ({ feedbackList, onBack, onMarkReviewed }) => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-sky-100 p-10">
-      <div className="max-w-6xl mx-auto bg-white/95 backdrop-blur-md p-10 rounded-2xl shadow-lg border border-gray-100">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <h2 className="text-3xl font-bold text-indigo-700">Feedback Analytics</h2>
-          <PrimaryButton onClick={onBack} className="bg-gray-400 hover:bg-gray-500">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-100 to-indigo-200 py-10">
+      <div className="max-w-7xl mx-auto px-6">
+        {/* --- Header Section --- */}
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-3xl font-extrabold text-indigo-700">
+              Feedback Analytics
+            </h1>
+            <p className="text-gray-600 mt-1">
+              Detailed insights into the submitted feedback.
+            </p>
+          </div>
+          <PrimaryButton 
+            onClick={onBack} 
+            className="mt-4 md:mt-0 bg-indigo-600 hover:bg-indigo-700 transition-colors duration-200"
+          >
             Back
           </PrimaryButton>
         </div>
 
-        {/* --- Summary Section --- */}
-        <div className="grid md:grid-cols-3 gap-6 mb-10 text-center">
-          <div className="bg-indigo-50 p-6 rounded-xl shadow-sm">
-            <p className="text-gray-500 text-sm">Total Feedbacks</p>
-            <h3 className="text-3xl font-bold text-indigo-700">{feedbackList.length}</h3>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+          className="bg-white shadow-2xl rounded-2xl p-10 border border-indigo-100"
+        >
+          {/* --- Summary Section --- */}
+          <div className="grid md:grid-cols-3 gap-6 mb-10 text-center">
+            <div className="bg-indigo-50 p-6 rounded-xl shadow-sm border border-gray-200">
+              <p className="text-gray-500 text-sm font-medium">Total Feedbacks</p>
+              <h3 className="text-3xl font-bold text-indigo-700 mt-1">
+                {feedbackList.length}
+              </h3>
+            </div>
+            <div className="bg-indigo-50 p-6 rounded-xl shadow-sm border border-gray-200">
+              <p className="text-gray-500 text-sm font-medium">Average Satisfaction</p>
+              <h3 className="text-3xl font-bold text-green-600 mt-1">
+                {avgRating.toFixed(1)} / 5
+              </h3>
+            </div>
+            <div className="bg-indigo-50 p-6 rounded-xl shadow-sm border border-gray-200">
+              <p className="text-gray-500 text-sm font-medium">Last Updated</p>
+              <h3 className="text-lg font-semibold text-gray-700 mt-1">
+                {new Date().toLocaleDateString()}
+              </h3>
+            </div>
           </div>
-          <div className="bg-indigo-50 p-6 rounded-xl shadow-sm">
-            <p className="text-gray-500 text-sm">Average Satisfaction</p>
-            <h3 className="text-3xl font-bold text-green-600">
-              {avgRating.toFixed(1)} / 5
+
+          {/* --- Rating Distribution Chart --- */}
+          <div className="bg-gradient-to-r from-indigo-100 to-indigo-200 p-6 rounded-2xl shadow-inner mb-10 border border-gray-200">
+            <h3 className="text-xl font-semibold text-indigo-800 mb-4">
+              Rating Distribution
             </h3>
+            <ResponsiveContainer width="100%" height={250}>
+              <BarChart data={data}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="rating" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="count" fill="#4F46E5" radius={[6, 6, 0, 0]} name="Feedback Count" />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
-          <div className="bg-indigo-50 p-6 rounded-xl shadow-sm">
-            <p className="text-gray-500 text-sm">Last Updated</p>
-            <h3 className="text-lg font-semibold text-gray-700">
-              {new Date().toLocaleDateString()}
+
+          {/* --- Aspect Comparison Chart --- */}
+          <div className="bg-gradient-to-r from-indigo-100 to-sky-200 p-6 rounded-2xl shadow-inner mb-10 border border-gray-200">
+            <h3 className="text-xl font-semibold text-indigo-800 mb-4">
+              Average Ratings by Aspect
             </h3>
+            <ResponsiveContainer width="100%" height={250}>
+              <BarChart data={categoryData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="aspect" />
+                <YAxis domain={[0, 5]} />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="avg" fill="#22C55E" radius={[6, 6, 0, 0]} name="Average Rating" />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
-        </div>
 
-        {/* --- Rating Distribution Chart --- */}
-        <div className="bg-gradient-to-r from-indigo-100 to-indigo-200 p-4 rounded-xl shadow-inner mb-10">
-          <h3 className="text-xl font-semibold text-indigo-800 mb-3">
-            Rating Distribution
-          </h3>
-          <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={data}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="rating" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="count" fill="#4F46E5" radius={[6, 6, 0, 0]} name="Feedback Count" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* --- Aspect Comparison Chart --- */}
-        <div className="bg-gradient-to-r from-indigo-100 to-sky-200 p-4 rounded-xl shadow-inner mb-10">
-          <h3 className="text-xl font-semibold text-indigo-800 mb-3">
-            Average Ratings by Aspect
-          </h3>
-          <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={categoryData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="aspect" />
-              <YAxis domain={[0, 5]} />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="avg" fill="#22C55E" radius={[6, 6, 0, 0]} name="Average Rating" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* --- Feedback List Section --- */}
-        <h3 className="text-2xl font-semibold text-indigo-700 mb-4">Recent Feedback</h3>
-        <div className="space-y-4">
-          {feedbackList.map((fb) => (
-            <motion.div
-              key={fb.id}
-              whileHover={{ scale: 1.01 }}
-              className="border border-gray-200 p-5 rounded-xl flex justify-between items-center shadow-sm hover:shadow-md bg-white"
-            >
-              <div>
-                <p className="text-gray-800 font-medium">{fb.feedbackText}</p>
-                <p className="text-gray-500 text-sm">
-                  Avg: {fb.averageRating?.toFixed(1)} / 5 • {fb.createdAt}
-                </p>
-              </div>
-              {!fb.reviewed && (
-                <PrimaryButton
-                  onClick={() => onMarkReviewed(fb.id)}
-                  className="bg-green-500 hover:bg-green-600"
-                >
-                  Mark Reviewed
-                </PrimaryButton>
-              )}
-            </motion.div>
-          ))}
-        </div>
+          {/* --- Feedback List Section --- */}
+          <h3 className="text-2xl font-semibold text-indigo-700 mb-5">Recent Feedback</h3>
+          <div className="grid gap-5">
+            {feedbackList.map((fb) => (
+              <motion.div
+                key={fb.id}
+                whileHover={{ scale: 1.01 }}
+                className="border border-gray-200 rounded-xl p-6 shadow-sm hover:shadow-md transition-all bg-white"
+              >
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="text-gray-800 font-medium mb-1">{fb.feedbackText}</p>
+                    <p className="text-gray-500 text-sm">
+                      Avg: {fb.averageRating?.toFixed(1)} / 5 • {fb.createdAt}
+                    </p>
+                  </div>
+                  {!fb.reviewed && (
+                    <PrimaryButton
+                      onClick={() => onMarkReviewed(fb.id)}
+                      className="bg-green-500 hover:bg-green-600"
+                    >
+                      Mark Reviewed
+                    </PrimaryButton>
+                  )}
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </motion.div>
       </div>
     </div>
   );
