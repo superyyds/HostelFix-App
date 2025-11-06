@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { AlertTriangle, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
+import { collection, getDocs, addDoc, updateDoc, doc, deleteDoc } from "firebase/firestore";
 
 // --- Import UI Component ---
 // Only the global MessageBox is needed here for displaying messages system-wide.
@@ -9,6 +10,7 @@ import PrimaryButton from './components/PrimaryButton';
 
 // --- Import API / Firebase Helpers ---
 import { 
+    db,
     auth, 
     signOut, 
     fetchUserRole, 
@@ -294,43 +296,43 @@ const App = () => {
         setComplaints(prev => prev.map(c => c._id === id ? { ...c, ...updates } : c));
     };
 
-    // Feedback handlers
+    // --- Feedback Functions ---
     const handleFeedbackSubmit = async (feedback) => {
         try {
-        if (editingFeedback) {
-            // Update existing feedback
-            const feedbackRef = doc(db, "feedbacks", feedback.id.toString());
-            await updateDoc(feedbackRef, feedback);
-            setFeedbackList((prev) => prev.map((f) => (f.id === feedback.id ? feedback : f)));
-            setEditingFeedback(null);
-        } else {
-            // Add new feedback
-            const docRef = await addDoc(collection(db, "feedbacks"), feedback);
-            setFeedbackList((prev) => [...prev, { ...feedback, id: docRef.id }]);
-        }
-        handleViewChange("studentFeedbackList");
+            if (editingFeedback) {
+                // Update existing feedback
+                const feedbackRef = doc(db, "feedbacks", feedback.id.toString());
+                await updateDoc(feedbackRef, feedback);
+                setFeedbackList((prev) => prev.map((f) => (f.id === feedback.id ? feedback : f)));
+                setEditingFeedback(null);
+            } else {
+                // Add new feedback
+                const docRef = await addDoc(collection(db, "feedbacks"), feedback);
+                setFeedbackList((prev) => [...prev, { ...feedback, id: docRef.id }]);
+            }
+            setView("studentFeedbackList");
         } catch (error) {
-        console.error("Error adding feedback: ", error);
+            console.error("Error adding feedback: ", error);
         }
     };
 
     const handleDeleteFeedback = async (id) => {
         try {
-        await deleteDoc(doc(db, "feedbacks", id.toString()));
-        setFeedbackList((prev) => prev.filter((f) => f.id !== id));
+            await deleteDoc(doc(db, "feedbacks", id.toString()));
+            setFeedbackList((prev) => prev.filter((f) => f.id !== id));
         } catch (error) {
-        console.error("Error deleting feedback: ", error);
+            console.error("Error deleting feedback: ", error);
         }
     };
 
     const handleEditFeedback = (feedback) => {
         setEditingFeedback(feedback);
-        handleViewChange("feedbackForm");
+        setView("feedbackForm");
     };
 
     const handleCancelEdit = () => {
         setEditingFeedback(null);
-        handleViewChange("studentFeedbackList");
+        setView("studentFeedbackList");
     };
 
     const handleMarkReviewed = async (id) => {
