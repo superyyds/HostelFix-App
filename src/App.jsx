@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { AlertTriangle, Loader2 } from "lucide-react";
+import { motion } from "framer-motion";
 
 // --- Import UI Component ---
 // Only the global MessageBox is needed here for displaying messages system-wide.
 import MessageBox from './components/MessageBox';
+import PrimaryButton from './components/PrimaryButton';
 
 // --- Import API / Firebase Helpers ---
 import { 
@@ -14,7 +16,7 @@ import {
     onAuthStateChanged,
 } from './api/firebase';
 
-// --- Import Page Components (Flat Structure) ---
+// User Managemnent Module Components
 import LoginPage from './pages/LoginPage';
 import PasswordRecoveryPage from './pages/PasswordRecoveryPage';
 import ChangePasswordPage from './pages/ChangePasswordPage';
@@ -23,6 +25,15 @@ import StudentDashboard from './pages/StudentDashboard';
 import WardenDashboard from './pages/WardenDashboard';
 import ProfileManagementPage from './pages/ProfileManagementPage';
 
+// import Complaint Management Module Components
+import ComplaintForm from './pages/ComplaintForm';
+import ComplaintList from './pages/ComplaintList';
+import ComplaintDetail from './pages/ComplaintDetail';
+
+// impoart Feedback Module Components
+import FeedbackForm from './pages/FeedbackForm';
+import FeedbackList from './pages/FeedbackList';
+import FeedbackViewer from './pages/FeedbackViewer';
 
 // --- Global State Structure ---
 const initialUserState = {
@@ -38,7 +49,6 @@ const initialUserState = {
     userData: null,
 };
 
-
 // --- Main App Component (Router & Auth Logic) ---
 const App = () => {
     const [appState, setAppState] = useState(initialUserState);
@@ -46,6 +56,12 @@ const App = () => {
     const [lastWardenHash, setLastWardenHash] = useState(null);
     const [isMessageVisible, setIsMessageVisible] = useState(false);
     const [message, setMessage] = useState({ title: "", text: "", type: "" });
+
+    // complaint + feedback
+    const [complaints, setComplaints] = useState([]);
+    const [selected, setSelected] = useState(null);
+    const [feedbackList, setFeedbackList] = useState([]);
+    const [editingFeedback, setEditingFeedback] = useState(null); // NEW: track feedback being edited
 
     const closeMessage = () => setIsMessageVisible(false);
 
@@ -201,6 +217,24 @@ const App = () => {
         return () => unsubscribe();
     }, [isRegistering, lastWardenHash]); // Added dependencies
 
+    // feedback fetching
+    useEffect(() => {
+        const fetchFeedbacks = async () => {
+        try {
+            const querySnapshot = await getDocs(collection(db, "feedbacks"));
+            const data = querySnapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+            }));
+            setFeedbackList(data);
+        } catch (error) {
+            console.error("Error fetching feedbacks: ", error);
+        }
+        };
+
+        fetchFeedbacks();
+    }, []);
+
     const handleLoginSuccess = ({ role, userDocId, mustChange, userData }) => {
         setAppState(prev => ({
             ...prev,
@@ -249,6 +283,70 @@ const App = () => {
 
     const handleBackToLogin = () => {
         handleViewChange("login");
+    };
+
+    // Complaint handlers
+    const handleCreateComplaint = (complaint) => {
+        setComplaints((prev) => [complaint, ...prev]);
+    };
+
+    const handleUpdateComplaint = (id, updates) => {
+        setComplaints(prev => prev.map(c => c._id === id ? { ...c, ...updates } : c));
+    };
+
+    // Feedback handlers
+    const handleFeedbackSubmit = async (feedback) => {
+        try {
+        if (editingFeedback) {
+            // Update existing feedback
+            const feedbackRef = doc(db, "feedbacks", feedback.id.toString());
+            await updateDoc(feedbackRef, feedback);
+            setFeedbackList((prev) => prev.map((f) => (f.id === feedback.id ? feedback : f)));
+            setEditingFeedback(null);
+        } else {
+            // Add new feedback
+            const docRef = await addDoc(collection(db, "feedbacks"), feedback);
+            setFeedbackList((prev) => [...prev, { ...feedback, id: docRef.id }]);
+        }
+        handleViewChange("studentFeedbackList");
+        } catch (error) {
+        console.error("Error adding feedback: ", error);
+        }
+    };
+
+    const handleDeleteFeedback = async (id) => {
+        try {
+        await deleteDoc(doc(db, "feedbacks", id.toString()));
+        setFeedbackList((prev) => prev.filter((f) => f.id !== id));
+        } catch (error) {
+        console.error("Error deleting feedback: ", error);
+        }
+    };
+
+    const handleEditFeedback = (feedback) => {
+        setEditingFeedback(feedback);
+        handleViewChange("feedbackForm");
+    };
+
+    const handleCancelEdit = () => {
+        setEditingFeedback(null);
+        handleViewChange("studentFeedbackList");
+    };
+
+    const handleMarkReviewed = async (id) => {
+        try {
+        const feedbackRef = doc(db, "feedbacks", id);
+        await updateDoc(feedbackRef, { reviewed: true }); // update Firestore
+
+        // update UI locally too
+        setFeedbackList((prev) =>
+            prev.map((f) =>
+            f.id === id ? { ...f, reviewed: true } : f
+            )
+        );
+        } catch (error) {
+        console.error("Error marking feedback as reviewed: ", error);
+        }
     };
 
     const renderView = () => {
@@ -301,14 +399,29 @@ const App = () => {
         // Authenticated User Routing
         switch (view) {
             case "student":
-                return <StudentDashboard onLogout={handleLogout} userId={appState.userId} userDocId={appState.userDocId} userRole={appState.role} onViewChange={handleViewChange} />;
+                return <StudentDashboard
+                onLogout={handleLogout}
+                userId={appState.userId}
+                userDocId={appState.userDocId}
+                userRole={appState.role}
+                onViewChange={handleViewChange}
+                />;
 
             case "warden":
-                return <WardenDashboard onLogout={handleLogout} userId={appState.userId} userDocId={appState.userDocId} userRole={appState.role} onViewChange={handleViewChange} />;
+                return <WardenDashboard
+                onLogout={handleLogout}
+                userId={appState.userId}
+                userDocId={appState.userDocId}
+                userRole={appState.role}
+                onViewChange={handleViewChange}
+                />;
 
             case "register-user":
                 if (appState.role === 'warden') {
-                    return <RegisterUserPage onBackToDashboard={() => handleViewChange('warden')} onRegistrationComplete={handleRegistrationComplete} />;
+                    return <RegisterUserPage
+                    onBackToDashboard={() => handleViewChange('warden')}
+                    onRegistrationComplete={handleRegistrationComplete}
+                    />;
                 } 
                 // Fallback for unauthorized access
                 return handleViewChange(appState.role); 
@@ -330,6 +443,53 @@ const App = () => {
                         onCancel={() => handleViewChange('profile-management')}
                     />;
 
+            case "complaintForm":
+                return <ComplaintForm
+                            currentUser={appState.userData}
+                            onCreate={handleCreateComplaint}
+                            onClose={() => handleViewChange("student")}
+                    />;
+
+            case "complaintList":
+                return <ComplaintList 
+                            list={complaints}
+                            filter={{ userId: appState.userData.userId }}
+                            onSelect={c=> { setSelected(c); handleViewChange("complaintDetail"); }}
+                            onBack={() => handleViewChange(appState.role)}
+                        />;
+                    
+            case "complaintDetail":
+                return <ComplaintDetail
+                            complaint={selected}
+                            currentUser={appState.userData}
+                            onClose={() => handleViewChange("complaintList")}
+                            onUpdate={handleUpdateComplaint}
+                            onGiveFeedback={() => handleViewChange("feedbackForm")}
+                    />;
+            
+            case "feedbackForm":
+                return <FeedbackForm
+                    onBack={() => handleViewChange("student")}
+                    onSubmitFeedback={handleFeedbackSubmit}
+                    editingFeedback={editingFeedback}
+                    onCancelEdit={handleCancelEdit}
+                />
+
+            case "feedbackViewer":
+                return <FeedbackViewer
+                    feedbackList={feedbackList}
+                    onBack={() => handleViewChange("warden")}
+                    onMarkReviewed={handleMarkReviewed}
+                />
+
+            case "studentFeedbackList":
+                return<FeedbackList
+                        feedbackList={feedbackList}
+                        onBack={() => handleViewChange("student")}
+                        onDeleteFeedback={handleDeleteFeedback}
+                        onEditFeedback={handleEditFeedback}
+                />
+    
             default:
                 // Fallback to dashboard based on role
                 return handleViewChange(appState.role);

@@ -1,7 +1,7 @@
 // src/pages/StudentDashboard.jsx
 
 import React from 'react';
-import { LogOut, Settings, AlertTriangle, MessageSquare, Shield } from "lucide-react";
+import { LogOut, Settings, AlertTriangle, MessageSquare, Shield, Star } from "lucide-react";
 
 // --- Import UI Components ---
 import PrimaryButton from '../components/PrimaryButton';
@@ -30,23 +30,39 @@ const StudentDashboard = ({ onLogout, userId, userDocId, userRole, onViewChange 
                 </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <DashboardCard
-                    icon={AlertTriangle}
-                    title="Register Complaint"
-                    description="Log a new issue with room or facilities (Module 2)."
+                <DashboardCard 
+                    icon={AlertTriangle} 
+                    title="Register Complaint" 
+                    description="Log a new issue with your room or facilities." 
                     color="text-red-500"
+                    onClick={() => onViewChange('complaintForm')}
                 />
-                <DashboardCard
-                    icon={MessageSquare}
-                    title="Complaint Tracking"
-                    description="View status (Pending, Resolved) and history."
+                <DashboardCard 
+                    icon={MessageSquare} 
+                    title="Complaint Tracking" 
+                    description="View your complaint status and history." 
                     color="text-blue-500"
+                    onClick={() => onViewChange('complaintList')}
+                />
+                <DashboardCard 
+                    icon={Shield} 
+                    title="View Announcements" 
+                    description="See warden updates and maintenance schedules." 
+                    color="text-green-500" 
                 />
                 <DashboardCard
                     icon={Shield}
-                    title="View Announcements"
-                    description="Warden updates and maintenance schedules."
+                    title="Submit Feedback"
+                    description="Share your thoughts on how your complaint was handled."
                     color="text-green-500"
+                    onClick={() => onViewChange('feedbackForm')}
+                />
+                <DashboardCard
+                    icon={Star}
+                    title="My Feedback"
+                    description="View and manage your submitted feedback."
+                    color="text-yellow-500"
+                    onClick={() => onViewChange('studentFeedbackList')}
                 />
             </div>
         </div>

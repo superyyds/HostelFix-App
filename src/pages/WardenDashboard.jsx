@@ -1,7 +1,7 @@
 // src/pages/WardenDashboard.jsx
 
 import React from 'react';
-import { LogOut, Settings, AlertTriangle, MessageSquare, BarChart3, Users } from "lucide-react";
+import { LogOut, Settings, AlertTriangle, MessageSquare, BarChart3, Users, Shield } from "lucide-react";
 
 // --- Import UI Components ---
 import PrimaryButton from '../components/PrimaryButton';
@@ -37,20 +37,25 @@ const WardenDashboard = ({ onLogout, userId, userDocId, userRole, onViewChange }
                 </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <DashboardCard
-                    icon={AlertTriangle}
-                    title="New Complaints (5)"
-                    description="Review and assign unhandled issues (Module 2)."
+                <DashboardCard 
+                    icon={AlertTriangle} 
+                    title="All Complaints" 
+                    description="Review and assign unhandled issues (Module 2)." 
+                    color="text-red-500"
+                    onClick={() => onViewChange('complaintList')}
                 />
-                <DashboardCard
-                    icon={MessageSquare}
-                    title="Feedback Review"
-                    description="Analyze student satisfaction ratings (Module 3)."
+                <DashboardCard 
+                    icon={MessageSquare} 
+                    title="Feedback Review" 
+                    description="View student feedback and satisfaction ratings." 
+                    color="text-indigo-500" 
+                    onClick={() => onViewChange('feedbackViewer')}
                 />
-                <DashboardCard
-                    icon={BarChart3}
-                    title="Generate Reports"
-                    description="Quarterly analytics on resolution times (Module 4)."
+                <DashboardCard 
+                    icon={Shield} 
+                    title="Generate Reports" 
+                    description="Quarterly analytics on resolution times (Module 4)." 
+                    color="text-green-500" 
                 />
             </div>
         </div>
