@@ -1,17 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { AlertTriangle, Loader2 } from "lucide-react";
-import { motion } from "framer-motion";
 import { collection, getDocs, addDoc, updateDoc, doc, deleteDoc } from "firebase/firestore";
 
 // --- Import UI Component ---
-// Only the global MessageBox is needed here for displaying messages system-wide.
 import MessageBox from './components/MessageBox';
-import PrimaryButton from './components/PrimaryButton';
 
 // --- Import API / Firebase Helpers ---
-import { 
+import {
     db,
-    auth, 
+    auth,
     signOut, 
     fetchUserRole, 
     wardenSessionCache,
@@ -59,9 +56,11 @@ const App = () => {
     const [isMessageVisible, setIsMessageVisible] = useState(false);
     const [message, setMessage] = useState({ title: "", text: "", type: "" });
 
-    // complaint + feedback
+    // complaint
     const [complaints, setComplaints] = useState([]);
     const [selected, setSelected] = useState(null);
+
+    // feedback
     const [feedbackList, setFeedbackList] = useState([]);
     const [editingFeedback, setEditingFeedback] = useState(null); // NEW: track feedback being edited
 
@@ -292,10 +291,6 @@ const App = () => {
         setComplaints((prev) => [complaint, ...prev]);
     };
 
-    const handleUpdateComplaint = (id, updates) => {
-        setComplaints(prev => prev.map(c => c._id === id ? { ...c, ...updates } : c));
-    };
-
     // --- Feedback Functions ---
     const handleFeedbackSubmit = async (feedback) => {
         try {
@@ -454,18 +449,16 @@ const App = () => {
 
             case "complaintList":
                 return <ComplaintList 
-                            list={complaints}
-                            filter={{ userId: appState.userData.userId }}
+                            currentUser={appState.userData}
                             onSelect={c=> { setSelected(c); handleViewChange("complaintDetail"); }}
-                            onBack={() => handleViewChange(appState.role)}
+                            onBack={() => { setSelected(null); handleViewChange(appState.role); }}
                         />;
                     
             case "complaintDetail":
                 return <ComplaintDetail
                             complaint={selected}
                             currentUser={appState.userData}
-                            onClose={() => handleViewChange("complaintList")}
-                            onUpdate={handleUpdateComplaint}
+                            onClose={() => { setSelected(null); handleViewChange("complaintList") }}
                             onGiveFeedback={() => handleViewChange("feedbackForm")}
                     />;
             

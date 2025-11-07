@@ -1,12 +1,12 @@
 import React, { useState, } from "react";
 import { motion } from "framer-motion";
 import { CheckCircle, Image as ImageIcon } from "lucide-react";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 
+import { db } from "../api/firebase"; 
 import PrimaryButton from "../components/PrimaryButton";
 
 const STATUS = { PENDING: 'Pending', IN_PROGRESS: 'In Progress', RESOLVED: 'Resolved' };
-// Simple in-memory "id" generator
-const makeId = () => Date.now().toString(36) + Math.random().toString(36).slice(2,8);
 
 // Complaint Form component (common)
 const ComplaintForm = ({ currentUser, onCreate, onClose }) => {
@@ -48,32 +48,68 @@ const ComplaintForm = ({ currentUser, onCreate, onClose }) => {
   }
 };
 
-  const handleSubmit = (e) => {
-    e && e.preventDefault && e.preventDefault();
-    const newComplaint = {
-      _id: makeId(),
-      userId: currentUser.userId,
-      userName: currentUser.name,
-      campus,
-      hostel,
-      category,
-      description,
-      priority,
-      status: STATUS.PENDING,
-      remarks: "",
-      attachments: images,
-      dateSubmitted: new Date().toISOString(),
-      dateResolved: null,
-      assignedTo: null,
-    };
-    onCreate(newComplaint);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-    setTimeout(() => {
-      onClose();
-      // reset form (optional)
-      setStep(1); setCampus(''); setHostel(''); setCategory(''); setDescription(''); setPriority('Medium'); setImages([]);
-    }, 1200);
+  const filesToDataUrls = (files) => {
+    return Promise.all(
+        files.map(file => new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve({ name: file.name, dataUrl: reader.result });
+        reader.onerror = (err) => reject(err);
+        reader.readAsDataURL(file);
+        }))
+    );
   };
+
+  const handleSubmit = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+
+    setIsSubmitting(true);
+
+    try {
+        // convert attachments to data URLs (or [] if none)
+        const attachments = images && images.length
+        ? await filesToDataUrls(images)
+        : [];
+
+        const doc = {
+        userId: currentUser.uid || "unknown",
+        userName: currentUser.name || "Unknown",
+        campus,
+        hostel,
+        category,
+        description,
+        priority,
+        status: STATUS.PENDING,
+        remarks: "",
+        attachments,
+        dateSubmitted: serverTimestamp(),
+        dateResolved: null,
+        assignedTo: null,
+        };
+
+        // write to Firestore
+        const colRef = collection(db, "complaints");
+        const ref = await addDoc(colRef, doc);
+
+        // optional: attach the generated id locally (if you want)
+        const created = { ...doc, _id: ref.id, dateSubmitted: new Date().toISOString() };
+
+        // call local callback to update local state / UI
+        onCreate(created);
+
+        setTimeout(() => {
+            onClose();
+            // reset form
+            setStep(1); setCampus(''); setHostel(''); setCategory(''); setDescription(''); setPriority('Medium'); setImages([]);
+        }, 1200);
+    } catch (err) {
+        console.error("Failed to submit complaint:", err);
+        alert("Failed to submit. Check console for details.");
+    } finally {
+        setIsSubmitting(false);
+    }
+};
 
   // framer-motion variants for slide animation
   const variants = {
@@ -359,8 +395,19 @@ const ComplaintForm = ({ currentUser, onCreate, onClose }) => {
                     Next
                   </PrimaryButton>
                 ) : (
-                  <PrimaryButton onClick={handleSubmit} className="w-auto px-6">
-                    Submit
+                  <PrimaryButton 
+                    onClick={handleSubmit} 
+                    className="w-auto px-6"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? (
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        Submitting...
+                      </div>
+                    ) : (
+                      "Submit"
+                    )}
                   </PrimaryButton>
                 )}
               </div>
