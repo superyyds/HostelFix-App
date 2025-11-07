@@ -40,7 +40,7 @@ const WardenDashboard = ({ onLogout, userId, userDocId, userRole, onViewChange }
                 <DashboardCard 
                     icon={AlertTriangle} 
                     title="All Complaints" 
-                    description="Review and assign unhandled issues (Module 2)." 
+                    description="Review and assign unhandled issues." 
                     color="text-red-500"
                     onClick={() => onViewChange('complaintList')}
                 />
@@ -54,7 +54,7 @@ const WardenDashboard = ({ onLogout, userId, userDocId, userRole, onViewChange }
                 <DashboardCard 
                     icon={Shield} 
                     title="Generate Reports" 
-                    description="Quarterly analytics on resolution times (Module 4)." 
+                    description="Quarterly analytics on resolution times." 
                     color="text-green-500" 
                 />
             </div>

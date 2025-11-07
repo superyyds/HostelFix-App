@@ -48,7 +48,31 @@ const ComplaintList = ({ currentUser, onSelect, onBack }) => {
       const order = { High: 1, Medium: 2, Low: 3 };
       result.sort((a, b) => order[a.priority] - order[b.priority]);
     } else {
-      result.sort((a, b) => new Date(b.dateSubmitted) - new Date(a.dateSubmitted));
+        result.sort((a, b) => {
+        // Handle Firestore Timestamp objects
+        const getDate = (complaint) => {
+          if (!complaint.dateSubmitted) return new Date(0); // Fallback for missing dates
+          
+          // If it's a Firestore Timestamp object
+          if (complaint.dateSubmitted.toDate && typeof complaint.dateSubmitted.toDate === 'function') {
+            return complaint.dateSubmitted.toDate();
+          }
+          
+          // If it's already a Date object
+          if (complaint.dateSubmitted instanceof Date) {
+            return complaint.dateSubmitted;
+          }
+          
+          // If it's a string or ISO string
+          return new Date(complaint.dateSubmitted);
+        };
+
+        const dateA = getDate(a);
+        const dateB = getDate(b);
+        
+        // Sort in descending order (newest first)
+        return dateB.getTime() - dateA.getTime();
+      });
     }
     return result;
   }, [list, filters, sortBy]);

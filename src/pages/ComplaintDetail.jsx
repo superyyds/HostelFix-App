@@ -198,10 +198,12 @@ const ComplaintDetail = ({ complaint, currentUser, onClose, onGiveFeedback }) =>
               </h4>
 
               {Array.isArray(complaint.attachments) && complaint.attachments.length > 0 ? (
-                <div className="flex flex-wrap gap-4 mb-4">
+                <div className="flex flex-wrap gap-4 m-4">
                   {complaint.attachments.map((file, i) => {
-                    const fileURL = file?.dataUrl || null;
+                    // Now file is a string (data URL), not an object
+                    const fileURL = typeof file === 'string' ? file : file?.dataUrl || null;
                     const fileName = file?.name || `Attachment ${i + 1}`;
+                    
                     if (!fileURL) return null;
 
                     return (
