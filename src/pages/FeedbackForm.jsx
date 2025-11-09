@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import {
   Star,
@@ -34,6 +34,7 @@ const FeedbackForm = ({
     }
   );
   const [image, setImage] = useState(editingFeedback?.image || null);
+  const fileInputRef = useRef(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [messageBox, setMessageBox] = useState({ visible: false, type: "", text: "" });
 
@@ -79,12 +80,78 @@ const FeedbackForm = ({
     }
   }, [editingFeedback]);
 
+  // Pre-select complaint when editing feedback
   useEffect(() => {
-    if (selectedComplaintId && complaints.length > 0) {
-      const complaint = complaints.find(c => c._id === selectedComplaintId);
-      if (complaint) setSelectedComplaint(complaint);
+    if (complaints.length === 0) return;
+
+    if (editingFeedback?.complaintId) {
+      const complaint = complaints.find(c => c._id === editingFeedback.complaintId);
+      if (complaint) {
+        setSelectedComplaintId(complaint._id);
+        setSelectedComplaint(complaint);
+      }
     }
-  }, [selectedComplaintId, complaints]);
+  }, [complaints, editingFeedback]);
+
+  // Save to localStorage on input change
+  useEffect(() => {
+    const draft = {
+      step,
+      selectedComplaintId,
+      feedbackText,
+      ratings,
+      image,
+    };
+    localStorage.setItem('feedbackDraft', JSON.stringify(draft));
+  }, [step, selectedComplaintId, feedbackText, ratings, image]);
+
+  // Load from localStorage on mount
+  useEffect(() => {
+    const savedDraft = localStorage.getItem('feedbackDraft');
+    if (savedDraft) {
+      const draft = JSON.parse(savedDraft);
+      setStep(draft.step || 1);
+      setSelectedComplaintId(draft.selectedComplaintId || "");
+      setFeedbackText(draft.feedbackText || "");
+      setRatings(draft.ratings || { responseTime: 0, serviceQuality: 0, communication: 0 });
+      setImage(draft.image || null);
+    }
+  }, []);
+
+  const ratingLabels = {
+    1: "Poor",
+    2: "Fair",
+    3: "Good",
+    4: "Very Good",
+    5: "Excellent",
+  };
+
+  const [hoverRatings, setHoverRatings] = useState(
+    Object.keys(ratings).reduce((acc, aspect) => {
+      acc[aspect] = 0;
+      return acc;
+    }, {})
+  );
+
+  // Handle hover
+  const handleHover = (aspect, value) => {
+    setHoverRatings((prev) => ({ ...prev, [aspect]: value }));
+  };
+
+  // Reset hover
+  const resetHover = (aspect) => {
+    setHoverRatings((prev) => ({ ...prev, [aspect]: 0 }));
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith("image/")) {
+      const reader = new FileReader();
+      reader.onload = () => setImage(reader.result);
+      reader.readAsDataURL(file);
+    }
+  };
 
   // --- Navigation ---
   const handleNext = () => setStep((s) => Math.min(3, s + 1));
@@ -190,6 +257,7 @@ const FeedbackForm = ({
       setRatings({ responseTime: 0, serviceQuality: 0, communication: 0 });
       setImage(null);
       setSelectedComplaintId("");
+      setSelectedComplaint(null);
     } catch (error) {
       console.error("Feedback submission failed:", error);
       setMessageBox({
@@ -218,7 +286,7 @@ const FeedbackForm = ({
               {editingFeedback ? "Edit Feedback" : "Submit Feedback"}
             </h1>
             <p className="text-gray-600 mt-1">
-              Follow the steps below to complete your feedback submission.
+              Follow the steps below to provide your valuable feedback. Your input helps us improve.
             </p>
           </div>
         </div>
@@ -353,24 +421,32 @@ const FeedbackForm = ({
 
                   {/* Show Complaint Details */}
                   {selectedComplaint && (
-                    <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-5 shadow-inner mb-6">
-                      <h3 className="text-lg font-semibold text-indigo-800 mb-3 flex items-center gap-2">
-                        Complaint Details
-                      </h3>
+                    <div>
+                      <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-5 shadow-inner mb-6">
+                        <h3 className="text-lg font-semibold text-indigo-800 mb-3 flex items-center gap-2">
+                          Complaint Details
+                        </h3>
 
-                      <div className="mt-6 p-4 border rounded-xl bg-gray-50">
-                        <h4 className="font-semibold mb-2">Complaint Details</h4>
-                        <p><strong>Category:</strong> {selectedComplaint.category}</p>
-                        <p><strong>Priority:</strong> {selectedComplaint.priority}</p>
-                        <p><strong>Campus:</strong> {selectedComplaint.campus}</p>
-                        <p><strong>Hostel:</strong> {selectedComplaint.hostel}</p>
-                        <p><strong>Status:</strong> {selectedComplaint.status}</p>
-                        <p className="mt-2"><strong>Description:</strong> {selectedComplaint.description}</p>
+                        <div className="mt-6 p-4 border rounded-xl bg-gray-50">
+                          <h4 className="font-semibold mb-2">Complaint Details</h4>
+                          <p><strong>Category:</strong> {selectedComplaint.category}</p>
+                          <p><strong>Priority:</strong> {selectedComplaint.priority}</p>
+                          <p><strong>Campus:</strong> {selectedComplaint.campus}</p>
+                          <p><strong>Hostel:</strong> {selectedComplaint.hostel}</p>
+                          <p><strong>Status:</strong> {selectedComplaint.status}</p>
+                          <p className="mt-2"><strong>Description:</strong> {selectedComplaint.description}</p>
+                        </div>
+
+                        <p className="mt-3 text-gray-600 text-sm leading-relaxed">
+                          <strong>Description:</strong> {selectedComplaint.description}
+                        </p>
                       </div>
-
-                      <p className="mt-3 text-gray-600 text-sm leading-relaxed">
-                        <strong>Description:</strong> {selectedComplaint.description}
-                      </p>
+                      <button
+                        onClick={() => setSelectedComplaint(null)}
+                        className="text-red-500 text-sm underline mt-2"
+                      >
+                        Clear Selection
+                      </button>
                     </div>
                   )}
                 </div>
@@ -383,52 +459,144 @@ const FeedbackForm = ({
                     Share Your Feedback
                   </h2>
 
-                  {/* Ratings */}
+                  {/* --- Ratings --- */}
                   {Object.keys(ratings).map((aspect) => (
-                    <div key={aspect}>
-                      <label className="block text-lg font-semibold text-gray-700 mb-2 capitalize">
+                    <div key={aspect} className="mb-6">
+                      <label
+                        htmlFor={`rating-${aspect}`}
+                        className="block text-lg font-semibold text-gray-700 mb-2 capitalize"
+                      >
                         {aspect.replace(/([A-Z])/g, " $1")}
                       </label>
-                      <div className="flex gap-2">
-                        {[1, 2, 3, 4, 5].map((num) => (
-                          <Star
-                            key={num}
-                            onClick={() => handleRating(aspect, num)}
-                            className={`w-7 h-7 cursor-pointer transition-transform ${
-                              num <= ratings[aspect]
-                                ? "text-yellow-400 fill-yellow-400 scale-110"
-                                : "text-gray-300 hover:text-yellow-300"
-                            }`}
-                          />
-                        ))}
+
+                      <div className="flex flex-col">
+                        <div className="flex gap-3 items-center">
+                          {[1, 2, 3, 4, 5].map((num) => (
+                            <Star
+                              key={num}
+                              id={`rating-${aspect}-${num}`}
+                              aria-label={`${aspect} rating ${num}`}
+                              onMouseEnter={() => handleHover(aspect, num)}
+                              onMouseLeave={() => resetHover(aspect)}
+                              onClick={() => handleRating(aspect, num)}
+                              className={`w-8 h-8 cursor-pointer transition-transform duration-200 ${
+                                num <= (hoverRatings[aspect] || ratings[aspect])
+                                  ? "text-yellow-400 fill-yellow-400 scale-110"
+                                  : "text-gray-300 hover:text-yellow-300 hover:scale-105"
+                              }`}
+                            />
+                          ))}
+                        </div>
+
+                        <span className="mt-1 text-sm text-gray-600 min-h-[1rem]">
+                          {hoverRatings[aspect]
+                            ? ratingLabels[hoverRatings[aspect]]
+                            : ratings[aspect]
+                            ? ratingLabels[ratings[aspect]]
+                            : ""}
+                        </span>
+
+                        
                       </div>
                     </div>
                   ))}
 
-                  {/* Feedback Text */}
+                  {/* Average Rating */}
+                  {Object.keys(ratings).length > 0 && (
+                    <div>
+                      <label
+                        htmlFor={`rating-Current Average Rating`}
+                        className="block text-lg font-semibold text-gray-700 mb-2 capitalize"
+                      >
+                        Current Average Rating:
+                      </label>
+
+                      <div className="flex flex-col">
+                        {/*
+                          Calculate average rating dynamically
+                        */}
+                        {(() => {
+                          const total = Object.values(ratings).reduce((sum, val) => sum + val, 0);
+                          const avgRating = total / Object.keys(ratings).length;
+                          return (
+                            <div className="flex items-center gap-3">
+                              {/* Stars */}
+                              <div className="flex gap-3 items-center">
+                                {[1, 2, 3, 4, 5].map((n) => (
+                                  <Star
+                                    key={n}
+                                    className={`w-8 h-8 cursor-pointer transition-transform duration-200 ${
+                                      n <= Math.round(avgRating)
+                                        ? "text-yellow-400 fill-yellow-400"
+                                        : "text-gray-300"
+                                    }`}
+                                  />
+                                ))}
+                              </div>
+
+                              {/* Numeric rating */}
+                              <span className="text-gray-700 font-semibold">{avgRating.toFixed(1)}</span>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Feedback Textarea with Character Count */}
                   <textarea
-                    className="w-full border border-gray-200 rounded-xl p-4 h-32 focus:ring-2 focus:ring-indigo-500 resize-none text-gray-700 shadow-sm"
+                    className="w-full border border-gray-200 rounded-xl p-4 h-32 focus:ring-2 focus:ring-indigo-500 resize-none text-gray-700 shadow-sm transition-all"
                     placeholder="Share your feedback here..."
                     value={feedbackText}
                     onChange={(e) => setFeedbackText(e.target.value)}
+                    maxLength={500}
                   />
+                  <div className="flex items-center justify-between mt-1">
+                    {/* Progress Bar */}
+                    <div className="relative w-full h-2 bg-gray-200 rounded mr-2">
+                      <div
+                        className="absolute h-2 bg-indigo-600 rounded"
+                        style={{ width: `${(feedbackText.length / 500) * 100}%` }}
+                      />
+                    </div>
+
+                    {/* Character Count */}
+                    <p className="text-sm text-gray-500 whitespace-nowrap">
+                      {feedbackText.length}/500
+                    </p>
+                  </div>
 
                   {/* Image Upload */}
                   <div>
                     <label className="block text-sm font-semibold mb-2 text-gray-700">
                       Optional Image Attachment
                     </label>
+
+                    {/* Hidden file input */}
                     <input
                       type="file"
                       accept="image/*"
                       onChange={handleImageChange}
-                      className="border border-gray-300 rounded-md p-2 w-full"
+                      ref={fileInputRef} // use a ref to trigger click programmatically
+                      className="hidden"
                     />
+
+                    {/* Drag & Drop / Click Area */}
+                    <div
+                      onClick={() => fileInputRef.current.click()}
+                      onDrop={handleDrop}
+                      onDragOver={(e) => e.preventDefault()}
+                      className="border-dashed border-2 border-gray-300 p-6 rounded-xl text-center cursor-pointer hover:bg-gray-50 transition"
+                    >
+                      Drag & drop an image here or click to select
+                    </div>
+
+                    {/* Preview */}
                     {image && (
                       <img
                         src={image}
-                        alt="Preview"
-                        className="mt-3 w-40 h-40 object-cover rounded-lg border border-gray-200 shadow"
+                        alt="Feedback attachment preview"
+                        className="mt-3 w-40 h-40 object-cover rounded-lg border border-gray-200 shadow-md transition-transform hover:scale-105"
                       />
                     )}
                   </div>
@@ -488,7 +656,11 @@ const FeedbackForm = ({
 
         {/* Message Box */}
         {messageBox.visible && (
-          <div
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3 }}
             className={`fixed top-6 right-6 z-50 flex items-center gap-3 p-4 rounded-lg shadow-lg transition-all ${
               messageBox.type === "success"
                 ? "bg-green-100 text-green-700"
@@ -503,11 +675,11 @@ const FeedbackForm = ({
             <span className="font-medium">{messageBox.text}</span>
             <button
               onClick={() => setMessageBox({ ...messageBox, visible: false })}
-              className="ml-3 text-sm underline hover:opacity-80"
+              className="ml-3 text-sm underline hover:opacity-80 focus:outline-none focus:ring-1 focus:ring-gray-400 rounded"
             >
               Close
             </button>
-          </div>
+          </motion.div>
         )}
       </div>
     </div>

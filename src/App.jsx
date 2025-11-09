@@ -533,11 +533,9 @@ const App = () => {
                 // Update existing feedback
                 const feedbackRef = doc(db, "feedbacks", feedback.id.toString());
                 await updateDoc(feedbackRef, feedback);
-                setFeedbackList((prev) => prev.map((f) => (f.id === feedback.id ? feedback : f)));
             } else {
                 // Add new feedback
                 const docRef = await addDoc(collection(db, "feedbacks"), feedback);
-                setFeedbackList((prev) => [...prev, { ...feedback, id: docRef.id }]);
             }
             setEditingFeedback(null);
             setView("studentFeedbackList");
