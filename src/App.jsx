@@ -1,7 +1,6 @@
 // App.jsx
 import React, { useState, useEffect, useCallback } from "react";
 import { AlertTriangle, Loader2 } from "lucide-react";
-import { collection, getDocs, addDoc, updateDoc, doc, deleteDoc } from "firebase/firestore";
 
 // --- Import UI Component ---
 import MessageBox from './components/MessageBox';
