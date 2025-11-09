@@ -475,6 +475,8 @@ const App = () => {
                     onSubmitFeedback={handleFeedbackSubmit}
                     editingFeedback={editingFeedback}
                     onCancelEdit={handleCancelEdit}
+                    currentUser={appState.userData}
+                    complaintList={complaints}
                 />
 
             case "feedbackViewer":
