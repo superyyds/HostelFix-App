@@ -363,13 +363,19 @@ const FeedbackForm = ({
 
           {/* Step Navigation */}
           <div className="p-6 flex justify-between items-center border-t bg-gray-50">
-            <PrimaryButton
+            <button
               onClick={handlePrev}
-              className="bg-gray-400 hover:bg-gray-500"
+              className={`
+                w-full py-3 px-4 font-semibold text-lg tracking-wider
+                bg-gray-400 text-white rounded-xl shadow-xl
+                transition duration-300 ease-in-out transform
+                hover:bg-gray-500 hover:shadow-2xl active:scale-[0.98]
+                disabled:bg-gray-400 disabled:shadow-none
+              `}
               type="button"
             >
               <ArrowLeft className="w-5 h-5 mr-2 inline" /> Back
-            </PrimaryButton>
+            </button>
 
             {step < 3 && (
               <PrimaryButton

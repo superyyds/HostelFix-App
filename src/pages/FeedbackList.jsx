@@ -21,7 +21,7 @@ const FeedbackList = ({ feedbackList, onBack, onDeleteFeedback, onEditFeedback }
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-extrabold text-indigo-700">
-              My Feed
+              My Feedback
             </h1>
             <p className="text-gray-600 mt-1">
               View, edit, or delete your submitted feedback.
