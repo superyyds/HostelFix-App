@@ -27,12 +27,18 @@ const FeedbackList = ({ feedbackList, onBack, onDeleteFeedback, onEditFeedback }
               View, edit, or delete your submitted feedback.
             </p>
           </div>
-          <PrimaryButton
+          <button
             onClick={onBack}
-            className="w-48 px-6 mt-4 md:mt-0 bg-indigo-600 hover:bg-indigo-700 transition-colors duration-200"
+            className={`
+              w-48 py-3 px-4 font-semibold text-lg tracking-wider
+              bg-indigo-600 text-white rounded-xl shadow-xl
+              transition duration-300 ease-in-out transform
+              hover:bg-indigo-700 hover:shadow-2xl active:scale-[0.98]
+              disabled:bg-gray-400 disabled:shadow-none
+            `}
           >
             Back
-          </PrimaryButton>
+          </button>
         </div>
 
         <motion.div

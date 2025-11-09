@@ -8,17 +8,18 @@ import {
   CheckCircle,
   AlertTriangle,
   User,
-  ClipboardList,
 } from "lucide-react";
 import PrimaryButton from "../components/PrimaryButton";
+import { collection, onSnapshot } from "firebase/firestore";
+
+import { db } from "../api/firebase";
 
 const FeedbackForm = ({
   onBack,
   onSubmitFeedback,
   editingFeedback,
   onCancelEdit,
-  currentUser,
-  complaintList = [], // pass in from parent (Firestore data)
+  currentUser, 
 }) => {
   // --- Step Management ---
   const [step, setStep] = useState(1);
@@ -38,6 +39,25 @@ const FeedbackForm = ({
 
   // --- Step 2 (Complaint ID) ---
   const [selectedComplaintId, setSelectedComplaintId] = useState("");
+  const [complaints, setComplaints] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedComplaint, setSelectedComplaint] = useState(null);
+
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, "complaints"), (snapshot) => {
+      let data = snapshot.docs.map(doc => ({ _id: doc.id, ...doc.data() }));
+      
+      // Only show the current user's complaints
+      if (currentUser?.role === "student") {
+        data = data.filter(c => c.userId === currentUser.uid);
+      }
+
+      setComplaints(data);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [currentUser]);
 
   useEffect(() => {
     if (editingFeedback) {
@@ -49,8 +69,22 @@ const FeedbackForm = ({
       });
       setImage(editingFeedback.image || null);
       setSelectedComplaintId(editingFeedback.complaintId || "");
+    } else {
+      // Clear form when no editing feedback
+      setFeedbackText("");
+      setRatings({ responseTime: 0, serviceQuality: 0, communication: 0 });
+      setImage(null);
+      setSelectedComplaintId("");
+      setSelectedComplaint(null);
     }
   }, [editingFeedback]);
+
+  useEffect(() => {
+    if (selectedComplaintId && complaints.length > 0) {
+      const complaint = complaints.find(c => c._id === selectedComplaintId);
+      if (complaint) setSelectedComplaint(complaint);
+    }
+  }, [selectedComplaintId, complaints]);
 
   // --- Navigation ---
   const handleNext = () => setStep((s) => Math.min(3, s + 1));
@@ -97,7 +131,7 @@ const FeedbackForm = ({
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!selectedComplaintId) {
+    if (!selectedComplaint) {
       setMessageBox({
         visible: true,
         type: "error",
@@ -139,8 +173,7 @@ const FeedbackForm = ({
         createdAt: editingFeedback?.createdAt || new Date().toISOString(),
         reviewed: editingFeedback?.reviewed || false,
         userId: currentUser?.uid,
-        userName: currentUser?.displayName || "",
-        complaintId: selectedComplaintId,
+        complaintId: selectedComplaint._id,
       };
 
       await onSubmitFeedback(feedback);
@@ -241,41 +274,105 @@ const FeedbackForm = ({
                   <h2 className="text-2xl font-bold text-indigo-700 mb-6 flex items-center gap-2">
                     <User className="w-6 h-6" /> Your Information
                   </h2>
-                  <div className="space-y-4 text-gray-700">
-                    <p>
-                      <strong>Name:</strong> {currentUser?.displayName || "—"}
-                    </p>
-                    <p>
-                      <strong>Email:</strong> {currentUser?.email || "—"}
-                    </p>
-                    <p>
-                      <strong>User ID:</strong> {currentUser?.uid || "—"}
-                    </p>
+
+                  <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-6 shadow-inner space-y-4 text-gray-700">
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <p>
+                        <strong>Full Name:</strong>{" "}
+                        {currentUser?.displayName || currentUser?.name || "—"}
+                      </p>
+                      <p>
+                        <strong>Email:</strong> {currentUser?.email || "—"}
+                      </p>
+                      <p>
+                        <strong>Contact Number:</strong>{" "}
+                        {currentUser?.contactNo && currentUser?.contactNo !== ""
+                          ? currentUser.contactNo
+                          : "N/A"}
+                      </p>
+                      <p>
+                        <strong>Role:</strong>{" "}
+                        {currentUser?.role
+                          ? currentUser.role.charAt(0).toUpperCase() + currentUser.role.slice(1)
+                          : "—"}
+                      </p>
+                      <p>
+                        <strong>{currentUser?.role === "student" ? "Hostel ID" : "User ID (Auth UID)"}:</strong>{" "}
+                        {currentUser?.role === "student"
+                          ? currentUser?.hostelId || "—"
+                          : currentUser?.uid || "—"}
+                      </p>
+                      {currentUser?.lastUpdated && (
+                        <p>
+                          <strong>Last Updated:</strong>{" "}
+                          {new Date(currentUser.lastUpdated).toLocaleString()}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="mt-4 p-3 bg-indigo-100 rounded-lg text-sm text-indigo-700">
+                      Please ensure your profile details are accurate. You can update them in your
+                      <strong> Profile Management </strong> section before submitting feedback.
+                    </div>
                   </div>
                 </div>
               )}
 
-              {/* Step 2: Select Complaint */}
               {step === 2 && (
                 <div>
-                  <h2 className="text-2xl font-bold text-indigo-700 mb-6 flex items-center gap-2">
-                    <ClipboardList className="w-6 h-6" /> Select Complaint
+                  <h2 className="text-2xl font-bold text-indigo-700 mb-6">
+                    Select a Complaint to Provide Feedback
                   </h2>
-                  <p className="text-gray-600 mb-4">
-                    Choose the complaint related to this feedback.
-                  </p>
-                  <select
-                    value={selectedComplaintId}
-                    onChange={(e) => setSelectedComplaintId(e.target.value)}
-                    className="w-full border p-3 rounded-lg mb-4"
-                  >
-                    <option value="">Select a complaint</option>
-                    {complaintList.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {`${c.id} - ${c.category || "Complaint"}`}
-                      </option>
-                    ))}
-                  </select>
+
+                  {/* Complaint Dropdown */}
+                  {loading ? (
+                    <p>Loading complaints...</p>
+                  ) : complaints.length === 0 ? (
+                    <p>No complaints found.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      <label className="font-semibold">Select a Complaint:</label>
+                      {complaints.map(c => (
+                        <button
+                          key={c._id}
+                          onClick={() => setSelectedComplaint(c)}
+                          className={`w-full text-left p-3 border rounded-lg hover:bg-indigo-50 transition ${
+                            selectedComplaint?._id === c._id ? "border-indigo-600 bg-indigo-100" : "border-gray-200"
+                          }`}
+                        >
+                          <div className="flex justify-between items-center">
+                            <span>{c.category}</span>
+                            <span className="text-sm text-gray-500">{c.status}</span>
+                          </div>
+                          <div className="text-sm text-gray-600 line-clamp-2">{c.description}</div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+
+                  {/* Show Complaint Details */}
+                  {selectedComplaint && (
+                    <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-5 shadow-inner mb-6">
+                      <h3 className="text-lg font-semibold text-indigo-800 mb-3 flex items-center gap-2">
+                        Complaint Details
+                      </h3>
+
+                      <div className="mt-6 p-4 border rounded-xl bg-gray-50">
+                        <h4 className="font-semibold mb-2">Complaint Details</h4>
+                        <p><strong>Category:</strong> {selectedComplaint.category}</p>
+                        <p><strong>Priority:</strong> {selectedComplaint.priority}</p>
+                        <p><strong>Campus:</strong> {selectedComplaint.campus}</p>
+                        <p><strong>Hostel:</strong> {selectedComplaint.hostel}</p>
+                        <p><strong>Status:</strong> {selectedComplaint.status}</p>
+                        <p className="mt-2"><strong>Description:</strong> {selectedComplaint.description}</p>
+                      </div>
+
+                      <p className="mt-3 text-gray-600 text-sm leading-relaxed">
+                        <strong>Description:</strong> {selectedComplaint.description}
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
 
