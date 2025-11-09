@@ -1,5 +1,4 @@
 // src/pages/WardenDashboard.jsx
-
 import React from 'react';
 import { LogOut, Settings, AlertTriangle, MessageSquare, BarChart3, Users, Shield } from "lucide-react";
 
@@ -8,13 +7,13 @@ import PrimaryButton from '../components/PrimaryButton';
 import DashboardCard from '../components/DashboardCard';
 
 const WardenDashboard = ({ onLogout, userId, userDocId, userRole, onViewChange }) => (
-    <div className="p-8 bg-gray-100 min-h-screen font-['Poppins']">
+    <div className="p-8 bg-gray-100 min-h-screen">
         <div className="max-w-7xl mx-auto">
             <h1 className="text-3xl font-extrabold text-gray-800 mb-6 border-b pb-2">Warden Portal - HostelFix Management</h1>
             <div className="bg-white p-6 rounded-2xl shadow-xl mb-8 flex justify-between items-center">
                 <div>
-                    <p className="text-lg text-gray-700">Welcome, Warden/Staff! Use the tools below to manage and resolve facility issues.</p>
-                    <p className="text-xs text-gray-500 mt-1">Firestore Doc ID: {userDocId} | Auth UID: {userId} | Role: {userRole}</p>
+                    <p className="text-xl text-gray-700">Welcome, Warden/Staff! Use the tools below to manage and resolve facility issues.</p>
+                    <p className="text-lg text-gray-500 mt-1">Firestore Doc ID: {userDocId} | Role: {userRole}</p>
                 </div>
                 <div className="flex items-center">
                     <button
@@ -40,7 +39,7 @@ const WardenDashboard = ({ onLogout, userId, userDocId, userRole, onViewChange }
                 <DashboardCard 
                     icon={AlertTriangle} 
                     title="All Complaints" 
-                    description="Review and assign unhandled issues (Module 2)." 
+                    description="Review and assign unhandled issues." 
                     color="text-red-500"
                     onClick={() => onViewChange('complaintList')}
                 />
@@ -54,7 +53,7 @@ const WardenDashboard = ({ onLogout, userId, userDocId, userRole, onViewChange }
                 <DashboardCard 
                     icon={Shield} 
                     title="Generate Reports" 
-                    description="Quarterly analytics on resolution times (Module 4)." 
+                    description="Quarterly analytics on resolution times." 
                     color="text-green-500" 
                 />
             </div>

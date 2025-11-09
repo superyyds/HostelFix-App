@@ -1,12 +1,12 @@
 import React, { useState, } from "react";
 import { motion } from "framer-motion";
-import { CheckCircle, Image as ImageIcon } from "lucide-react";
+import { CheckCircle, ImageIcon, Blocks, ShieldAlert, Clipboard, Waves, Zap, MessageCircleQuestion, Bed, Home, Trash } from "lucide-react";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 
+import { db } from "../api/firebase"; 
 import PrimaryButton from "../components/PrimaryButton";
 
 const STATUS = { PENDING: 'Pending', IN_PROGRESS: 'In Progress', RESOLVED: 'Resolved' };
-// Simple in-memory "id" generator
-const makeId = () => Date.now().toString(36) + Math.random().toString(36).slice(2,8);
 
 // Complaint Form component (common)
 const ComplaintForm = ({ currentUser, onCreate, onClose }) => {
@@ -18,10 +18,74 @@ const ComplaintForm = ({ currentUser, onCreate, onClose }) => {
   const [priority, setPriority] = useState("Medium");
   const [images, setImages] = useState([]);
 
-  const hostelOptions = {
-    "Main Campus": ["AMAN DAMAI", "BAKTI PERMAI", "CAHAYA GEMILANG", "FAJAR HARAPAN", "INDAH KEMBARA", "RESTU", "SAUJANA", "TEKUN"],
-    "Engineering Campus": ["UTAMA", "LEMBARAN", "JAYA"],
-    "Health Campus": ["MURNI", "NURANI"]
+  const campusOptions = {
+    "Main Campus": {
+      hostels: {
+        "AMAN DAMAI": {
+          image: "../../images/hostels/aman-damai.jpeg",
+          logo: "/images/logos/aman-damai-logo.jpg"
+        },
+        "BAKTI PERMAI": {
+          image: "/images/hostels/bakti-permai.jpeg",
+          logo: "/images/logos/bakti-permai-logo.jpeg"
+        },
+        "CAHAYA GEMILANG": {
+          image: "/images/hostels/cahaya-gemilang.jpeg",
+          logo: "/images/logos/cahaya-gemilang-logo.jpeg"
+        },
+        "FAJAR HARAPAN": {
+          image: "/images/hostels/fajar-harapan.jpeg",
+          logo: "/images/logos/fajar-harapan-logo.png"
+        },
+        "INDAH KEMBARA": {
+          image: "/images/hostels/indah-kembara.jpeg",
+          logo: "/images/logos/indah-kembara-logo.jpeg"
+        },
+        "RESTU": {
+          image: "/images/hostels/restu.jpeg",
+          logo: "/images/logos/restu-logo.png"
+        },
+        "SAUJANA": {
+          image: "/images/hostels/saujana.jpeg",
+          logo: "/images/logos/saujana-logo.jpeg"
+        },
+        "TEKUN": {
+          image: "/images/hostels/tekun.jpeg",
+          logo: "/images/logos/tekun-logo.jpeg"
+        }
+      },
+      image: "/images/campuses/main-campus.jpeg"
+    },
+    "Engineering Campus": {
+      hostels: {
+        "UTAMA": {
+          image: "/images/hostels/utama.jpeg",
+          logo: "/images/logos/utama-logo.jpeg"
+        },
+        "LEMBARAN": {
+          image: "/images/hostels/lembaran.jpeg",
+          logo: "/images/logos/lembaran-logo.png"
+        },
+        "JAYA": {
+          image: "/images/hostels/jaya.jpeg",
+          logo: "/images/logos/jaya-logo.jpeg"
+        }
+      },
+      image: "/images/campuses/engineering-campus.jpeg"
+    },
+    "Health Campus": {
+      hostels: {
+        "MURNI": {
+          image: "/images/hostels/murni.jpeg",
+          logo: "/images/logos/murni-nurani-logo.png"
+        },
+        "NURANI": {
+          image: "/images/hostels/nurani.jpeg",
+          logo: "/images/logos/murni-nurani-logo.png"
+        }
+      },
+      image: "/images/campuses/health-campus.jpeg"
+    }
   };
 
   const steps = [
@@ -48,32 +112,87 @@ const ComplaintForm = ({ currentUser, onCreate, onClose }) => {
   }
 };
 
-  const handleSubmit = (e) => {
-    e && e.preventDefault && e.preventDefault();
-    const newComplaint = {
-      _id: makeId(),
-      userId: currentUser.userId,
-      userName: currentUser.name,
-      campus,
-      hostel,
-      category,
-      description,
-      priority,
-      status: STATUS.PENDING,
-      remarks: "",
-      attachments: images,
-      dateSubmitted: new Date().toISOString(),
-      dateResolved: null,
-      assignedTo: null,
-    };
-    onCreate(newComplaint);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-    setTimeout(() => {
-      onClose();
-      // reset form (optional)
-      setStep(1); setCampus(''); setHostel(''); setCategory(''); setDescription(''); setPriority('Medium'); setImages([]);
-    }, 1200);
+  const filesToDataUrls = (files) => {
+    return Promise.all(
+        files.map(file => new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve({ name: file.name, dataUrl: reader.result });
+        reader.onerror = (err) => reject(err);
+        reader.readAsDataURL(file);
+        }))
+    );
   };
+
+  const handleSubmit = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+
+    setIsSubmitting(true);
+
+    try {
+        // convert attachments to data URLs (or [] if none)
+        const attachments = images && images.length
+          ? await Promise.all(
+              images.map(file => new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => {
+                  // Store only the data URL string, not complex objects
+                  resolve(reader.result);
+                };
+                reader.onerror = (err) => reject(err);
+                reader.readAsDataURL(file);
+              }))
+            )
+          : [];
+
+        const doc = {
+        userId: currentUser.uid || "unknown",
+        userName: currentUser.name || "Unknown",
+        campus,
+        hostel,
+        category,
+        description,
+        priority,
+        status: STATUS.PENDING,
+        remarks: "",
+        attachments,
+        dateSubmitted: serverTimestamp(),
+        dateResolved: null,
+        assignedTo: null,
+        };
+
+        // write to Firestore
+        const colRef = collection(db, "complaints");
+        const ref = await addDoc(colRef, doc);
+
+        // optional: attach the generated id locally (if you want)
+        const created = { 
+          ...doc, 
+          _id: ref.id, 
+          dateSubmitted: new Date().toISOString(),
+          // Reconstruct the attachment objects for local state if needed
+          attachments: attachments.map((dataUrl, index) => ({
+            name: images[index]?.name || `attachment-${index}`,
+            dataUrl: dataUrl
+          }))
+        };
+        
+        // call local callback to update local state / UI
+        onCreate(created);
+
+        setTimeout(() => {
+            onClose();
+            // reset form
+            setStep(1); setCampus(''); setHostel(''); setCategory(''); setDescription(''); setPriority('Medium'); setImages([]);
+        }, 1200);
+    } catch (err) {
+        console.error("Failed to submit complaint:", err);
+        alert("Failed to submit. Check console for details.");
+    } finally {
+        setIsSubmitting(false);
+    }
+};
 
   // framer-motion variants for slide animation
   const variants = {
@@ -173,32 +292,159 @@ const ComplaintForm = ({ currentUser, onCreate, onClose }) => {
             >
                 {/* Step 1 */}
                 {step === 1 && (
-                  <div className="grid grid-cols-1 h-full">
+                  <div className="h-full">
                     <div className="p-6">
-                      <h3 className="text-2xl font-semibold text-indigo-700 mb-2">Hostel Information</h3>
-                      <p className="text-lg text-gray-600 mb-6">Select the campus and hostel which you would like to report.</p>
+                      {/* Campus Selection */}
+                      <div className="mb-12">
+                        <h3 className="text-2xl font-semibold text-indigo-700 mb-2">Select Your Campus</h3>
+                        <p className="text-lg text-gray-600 mb-8">Choose the campus where your hostel is located</p>
 
-                      <label className="block mb-2 font-medium">Campus</label>
-                      <select
-                        value={campus}
-                        onChange={(e) => { setCampus(e.target.value); setHostel(''); }}
-                        className="w-full mb-6 p-3 border rounded-lg"
-                      >
-                        <option value="">Choose a campus</option>
-                        {Object.keys(hostelOptions).map(c => <option key={c} value={c}>{c}</option>)}
-                      </select>
+                        {/* Campus Cards */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                          {Object.entries(campusOptions).map(([campusName, campusData]) => (
+                            <motion.div
+                              key={campusName}
+                              whileHover={{ scale: 1.03, y: -5 }}
+                              whileTap={{ scale: 0.98 }}
+                              className={`relative cursor-pointer rounded-2xl overflow-hidden border-2 transition-all duration-300 ${
+                                campus === campusName 
+                                  ? 'border-indigo-500 ring-4 ring-indigo-100 shadow-xl' 
+                                  : 'border-gray-200 hover:border-indigo-300 shadow-lg hover:shadow-xl'
+                              }`}
+                              onClick={() => {
+                                setCampus(campusName);
+                                setHostel('');
+                              }}
+                            >
+                              {/* Campus Image */}
+                              <div className="relative h-48 overflow-hidden">
+                                <img
+                                  src={campusData.image}
+                                  alt={campusName}
+                                  className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
+                                />
+                                {/* Overlay */}
+                                <div className={`absolute inset-0 bg-gradient-to-t from-black/70 to-transparent transition-opacity duration-300 ${
+                                  campus === campusName ? 'opacity-80' : 'opacity-60'
+                                }`} />
+                                
+                                {/* Campus Name */}
+                                <div className="absolute bottom-4 left-4 text-white">
+                                  <h4 className="text-xl font-bold">{campusName}</h4>
+                                </div>
 
+                                {/* Selection Indicator */}
+                                {campus === campusName && (
+                                  <motion.div 
+                                    initial={{ scale: 0 }}
+                                    animate={{ scale: 1 }}
+                                    className="absolute top-4 right-4"
+                                  >
+                                    <div className="bg-indigo-500 text-white p-2 rounded-full shadow-lg">
+                                      <CheckCircle className="w-5 h-5" />
+                                    </div>
+                                  </motion.div>
+                                )}
+                              </div>
+                            </motion.div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Hostel Selection */}
                       {campus && (
-                        <>
-                          <label className="block mb-2 font-medium">Hostel</label>
-                          <select value={hostel} onChange={(e) => setHostel(e.target.value)} className="w-full p-3 border rounded-lg">
-                            <option value="">Choose a hostel</option>
-                            {hostelOptions[campus].map(h => <option key={h} value={h}>{h}</option>)}
-                          </select>
-                        </>
+                        <motion.div
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.5 }}
+                        >
+                          <h3 className="text-2xl font-semibold text-indigo-700 mb-2">Select Your Hostel</h3>
+                          <p className="text-lg text-gray-600 mb-8">Choose your specific hostel in {campus}</p>
+
+                          {/* Hostel Cards */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                            {Object.entries(campusOptions[campus].hostels).map(([hostelName, hostelData]) => (
+                              <motion.div
+                                key={hostelName}
+                                whileHover={{ scale: 1.05, y: -5 }}
+                                whileTap={{ scale: 0.95 }}
+                                className={`relative cursor-pointer rounded-xl overflow-hidden border-2 transition-all duration-300 ${
+                                  hostel === hostelName 
+                                    ? 'border-indigo-500 ring-4 ring-indigo-100 shadow-lg' 
+                                    : 'border-gray-200 hover:border-indigo-300 shadow-md hover:shadow-lg'
+                                }`}
+                                onClick={() => setHostel(hostelName)}
+                              >
+                                {/* Hostel Image */}
+                                <div className="relative h-32 overflow-hidden">
+                                  <img
+                                    src={hostelData.image}
+                                    alt={hostelName}
+                                    className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
+                                  />
+                                  {/* Overlay */}
+                                  <div className={`absolute inset-0 bg-gradient-to-t from-black/60 to-transparent transition-opacity duration-300 ${
+                                    hostel === hostelName ? 'opacity-70' : 'opacity-50'
+                                  }`} />
+                                  
+                                  {/* Hostel Logo */}
+                                  {hostelData.logo && (
+                                    <div className="absolute top-2 left-2 w-10 h-10 bg-white rounded-lg p-1 shadow-md">
+                                      <img
+                                        src={hostelData.logo}
+                                        alt={`${hostelName} logo`}
+                                        className="w-full h-full object-contain"
+                                      />
+                                    </div>
+                                  )}
+
+                                  {/* Selection Indicator */}
+                                  {hostel === hostelName && (
+                                    <motion.div 
+                                      initial={{ scale: 0 }}
+                                      animate={{ scale: 1 }}
+                                      className="absolute top-2 right-2"
+                                    >
+                                      <div className="bg-indigo-500 text-white p-1 rounded-full shadow-lg">
+                                        <CheckCircle className="w-4 h-4" />
+                                      </div>
+                                    </motion.div>
+                                  )}
+                                </div>
+
+                                {/* Hostel Name */}
+                                <div className="p-3 bg-white">
+                                  <h4 className="font-semibold text-gray-800 text-center">{hostelName}</h4>
+                                </div>
+                              </motion.div>
+                            ))}
+                          </div>
+
+                          {/* Selected Hostel Preview */}
+                          {hostel && (
+                            <motion.div
+                              initial={{ opacity: 0, scale: 0.9 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              className="mt-8 p-6 bg-gradient-to-r from-indigo-50 to-emerald-50 rounded-2xl border border-indigo-200"
+                            >
+                              <div className="flex items-center gap-4">
+                                <div className="w-16 h-16 bg-white rounded-xl p-2 shadow-md">
+                                  <img
+                                    src={campusOptions[campus].hostels[hostel].logo}
+                                    alt={`${hostel} logo`}
+                                    className="w-full h-full object-contain"
+                                  />
+                                </div>
+                                <div>
+                                  <h4 className="text-xl font-bold text-indigo-800">Selected: Desasiswa {hostel}</h4>
+                                  <p className="text-indigo-600">Located at {campus}</p>
+                                </div>
+                              </div>
+                            </motion.div>
+                          )}
+                        </motion.div>
                       )}
                     </div>
-                    
                   </div>
                 )}
 
@@ -207,31 +453,221 @@ const ComplaintForm = ({ currentUser, onCreate, onClose }) => {
                   <form className="h-full grid grid-cols-1 gap-8" onSubmit={(e) => { e.preventDefault(); handleNext(); }}>
                     <div className="p-6">
                       <h3 className="text-2xl font-semibold text-indigo-700 mb-2">Complaint Information</h3>
-                      <p className="text-lg text-gray-600 mb-6">Fill required fields and attach images (photo of issue recommended).</p>
+                      <p className="text-lg text-gray-600 mb-8">Fill required fields and attach images (photo of issue recommended).</p>
 
-                      <label className="block mb-2 font-medium">Category</label>
-                      <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full mb-6 p-3 border rounded-lg">
-                        <option value="">Select category</option>
-                        <option>Plumbing</option>
-                        <option>Electrical</option>
-                        <option>Furniture</option>
-                        <option>Room</option>
-                        <option>Other</option>
-                      </select>
+                      {/* Category Selection */}
+                      <div className="mb-8">
+                        <label className="block mb-3 font-medium text-lg flex items-center gap-2">
+                          <Blocks className="w-6 h-6 text-indigo-600" />
+                          Category
+                        </label>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {[
+                          { 
+                            id: "Plumbing", 
+                            icon: <Waves className="w-6 h-6" />,
+                            description: "Water pipes, leaks, drainage, and bathroom issues"
+                          },
+                          { 
+                            id: "Electrical", 
+                            icon: <Zap className="w-6 h-6" />,
+                            description: "Lights, power outlets, switches, and electrical systems"
+                          },
+                          { 
+                            id: "Furniture", 
+                            icon: <Bed className="w-6 h-6" />,
+                            description: "Beds, chairs, tables, wardrobes, and room furnishings"
+                          },
+                          { 
+                            id: "Room", 
+                            icon: <Home className="w-6 h-6" />,
+                            description: "Room structure, doors, windows, walls, and ceilings"
+                          },
+                          { 
+                            id: "Cleanliness", 
+                            icon: <Trash className="w-6 h-6" />,
+                            description: "Cleaning, sanitation, pest control, and hygiene issues"
+                          },
+                          { 
+                            id: "Other", 
+                            icon: <MessageCircleQuestion className="w-6 h-6" />,
+                            description: "Any other issues not covered by the categories above"
+                          }
+                        ].map((cat) => (
+                          <motion.div
+                            key={cat.id}
+                            whileHover={{ y: -4 }}
+                            className={`cursor-pointer rounded-xl border-2 p-5 transition-all duration-300 ${
+                              category === cat.id
+                                ? 'border-indigo-500 bg-indigo-50 shadow-lg ring-1 ring-indigo-200'
+                                : 'border-gray-200 bg-white hover:border-indigo-300 hover:shadow-md'
+                            }`}
+                            onClick={() => setCategory(cat.id)}
+                          >
+                            {/* Header with Icon and Title */}
+                            <div className="flex items-start gap-3 mb-3">
+                              <div className={`p-2 rounded-lg ${
+                                category === cat.id ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-100 text-gray-600'
+                              }`}>
+                                {cat.icon}
+                              </div>
+                              <div className="flex-1">
+                                <h4 className={`font-semibold text-lg ${
+                                  category === cat.id ? 'text-indigo-700' : 'text-gray-800'
+                                }`}>
+                                  {cat.id}
+                                </h4>
+                              </div>
+                              {category === cat.id && (
+                                <motion.div
+                                  initial={{ scale: 0 }}
+                                  animate={{ scale: 1 }}
+                                  className="bg-indigo-500 text-white p-1 rounded-full"
+                                >
+                                  <CheckCircle className="w-4 h-4" />
+                                </motion.div>
+                              )}
+                            </div>
 
-                      <label className="block mb-2 font-medium">Priority</label>
-                      <select value={priority} onChange={(e) => setPriority(e.target.value)} className="w-full mb-6 p-3 border rounded-lg">
-                        <option>Low</option>
-                        <option>Medium</option>
-                        <option>High</option>
-                      </select>
-                  
-                      <label className="block mb-2 font-medium">Description</label>
-                      <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={8} className="w-full p-3 border rounded-lg mb-6" placeholder="Describe the issue in detail..."></textarea>
+                            {/* Description */}
+                            <p className="text-sm text-gray-600 mb-3 leading-relaxed">
+                              {cat.description}
+                            </p>
 
-                      <label className="block mb-4 font-medium flex items-center gap-2"><ImageIcon className="w-5 h-5" /> Upload Images</label>
-                      <input type="file" multiple accept="image/*" onChange={(e) => setImages(Array.from(e.target.files))} className="mb-6" />
+                          </motion.div>
+                        ))}
+                      </div>
+                      </div>
 
+                      {/* Priority Selection */}
+                      <div className="mb-8">
+                        <label className="block mb-3 font-medium text-lg flex items-center gap-2">
+                          <ShieldAlert className="w-6 h-6 text-indigo-600" />
+                          Priority Level
+                        </label>
+                        <div className="flex flex-wrap justify-center gap-6">
+                          {[
+                            { 
+                              id: "Low", 
+                              color: "bg-green-100 text-green-800 border-green-300",
+                              selectedColor: "bg-green-500 text-white border-green-600",
+                              description: "Minor issue, can wait"
+                            },
+                            { 
+                              id: "Medium", 
+                              color: "bg-yellow-100 text-yellow-800 border-yellow-300",
+                              selectedColor: "bg-yellow-500 text-white border-yellow-600",
+                              description: "Moderate issue, address soon"
+                            },
+                            { 
+                              id: "High", 
+                              color: "bg-red-100 text-red-800 border-red-300",
+                              selectedColor: "bg-red-500 text-white border-red-600",
+                              description: "Urgent issue, needs immediate attention"
+                            }
+                          ].map((prio) => (
+                            <motion.button
+                              key={prio.id}
+                              type="button"
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.95 }}
+                              className={`w-36 px-6 py-3 rounded-full border-2 font-semibold transition-all duration-300 ${
+                                priority === prio.id 
+                                  ? prio.selectedColor + ' shadow-lg ring-2 ring-opacity-30 ' + 
+                                    (prio.id === "High" ? "ring-red-300" : 
+                                    prio.id === "Medium" ? "ring-yellow-300" : "ring-green-300")
+                                  : prio.color + ' hover:shadow-md'
+                              }`}
+                              onClick={() => setPriority(prio.id)}
+                            >
+                              {prio.id}
+                            </motion.button>
+                          ))}
+                        </div>
+                        
+                        {/* Priority Description */}
+                        <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                          <p className="text-sm text-gray-600 text-center">
+                            {priority === "Low" ? "🟢 Low Priority - Minor issue that can be addressed when convenient" :
+                            priority === "Medium" ? "🟡 Medium Priority - Should be addressed within a few days" :
+                            "🔴 High Priority - Requires immediate attention and resolution"}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Description */}
+                      <div className="mb-8">
+                        <label className="block mb-3 font-medium text-lg flex items-center gap-2">
+                          <Clipboard className="w-6 h-6 text-indigo-600" />
+                          Description
+                        </label>
+                        <textarea 
+                          value={description} 
+                          onChange={(e) => setDescription(e.target.value)} 
+                          rows={6} 
+                          className="w-full p-4 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all duration-300"
+                          placeholder="Please describe the issue in detail including specific locations, what happened, and when it started."
+                        ></textarea>
+                        <p className="text-sm text-gray-500 mt-2">
+                          Be as detailed as possible to help us understand and resolve your issue quickly.
+                        </p>
+                      </div>
+
+                      {/* Image Upload */}
+                      <div className="mb-6">
+                        <label className="block mb-3 font-medium text-lg flex items-center gap-2">
+                          <ImageIcon className="w-6 h-6 text-indigo-600" /> 
+                          Upload Images
+                        </label>
+                        <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:border-indigo-400 transition-colors duration-300">
+                          <input 
+                            type="file" 
+                            multiple 
+                            accept="image/*" 
+                            onChange={(e) => setImages(Array.from(e.target.files))} 
+                            className="hidden" 
+                            id="image-upload"
+                          />
+                          <label 
+                            htmlFor="image-upload" 
+                            className="cursor-pointer block"
+                          >
+                            <ImageIcon className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                            <p className="text-gray-600 mb-2">Click to upload images or drag and drop</p>
+                            <p className="text-sm text-gray-500">PNG, JPG, JPEG up to 10MB each</p>
+                          </label>
+                        </div>
+                        
+                        {/* Image Preview */}
+                        {images.length > 0 && (
+                          <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="mt-4"
+                          >
+                            <h4 className="font-medium text-gray-700 mb-3">Selected Images ({images.length})</h4>
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                              {images.map((file, index) => (
+                                <div key={index} className="relative group">
+                                  <img
+                                    src={URL.createObjectURL(file)}
+                                    alt={`Preview ${index + 1}`}
+                                    className="w-full h-24 object-cover rounded-lg border border-gray-200"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => setImages(images.filter((_, i) => i !== index))}
+                                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                                  >
+                                    ×
+                                  </button>
+                                  <p className="text-xs text-gray-500 mt-1 truncate">{file.name}</p>
+                                </div>
+                              ))}
+                            </div>
+                          </motion.div>
+                        )}
+                      </div>
                     </div>
                   </form>
                 )}
@@ -359,8 +795,19 @@ const ComplaintForm = ({ currentUser, onCreate, onClose }) => {
                     Next
                   </PrimaryButton>
                 ) : (
-                  <PrimaryButton onClick={handleSubmit} className="w-auto px-6">
-                    Submit
+                  <PrimaryButton 
+                    onClick={handleSubmit} 
+                    className="w-auto px-6"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? (
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        Submitting...
+                      </div>
+                    ) : (
+                      "Submit"
+                    )}
                   </PrimaryButton>
                 )}
               </div>

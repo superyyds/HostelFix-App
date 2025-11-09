@@ -7,14 +7,14 @@ import { LogOut, Settings, AlertTriangle, MessageSquare, Shield, Star } from "lu
 import PrimaryButton from '../components/PrimaryButton';
 import DashboardCard from '../components/DashboardCard';
 
-const StudentDashboard = ({ onLogout, userId, userDocId, userRole, onViewChange }) => (
-    <div className="p-8 bg-indigo-50 min-h-screen font-['Poppins']">
+const StudentDashboard = ({ onLogout, name, hostelId, userRole, onViewChange }) => (
+    <div className="p-8 bg-gray-100 min-h-screen">
         <div className="max-w-7xl mx-auto">
-            <h1 className="text-3xl font-extrabold text-indigo-700 mb-6 border-b pb-2">Student Portal - HostelFix</h1>
+            <h1 className="text-3xl font-extrabold text-gray-800 mb-6 border-b pb-2">Student Portal - HostelFix</h1>
             <div className="bg-white p-6 rounded-2xl shadow-xl mb-8 flex justify-between items-center">
                 <div>
-                    <p className="text-lg text-gray-700">Welcome, Student! Get started by submitting a new complaint.</p>
-                    <p className="text-xs text-gray-500 mt-1">Hostel ID: {userDocId} | Auth UID: {userId} | Role: {userRole}</p>
+                    <p className="text-xl text-gray-700">Welcome, {name}! Get started by submitting a new complaint.</p>
+                    <p className="text-lg text-gray-500 mt-1">Hostel ID: {hostelId} | Role: {userRole}</p>
                 </div>
                 <div className="flex items-center">
                     <button
