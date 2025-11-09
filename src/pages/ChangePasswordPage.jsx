@@ -1,7 +1,7 @@
 // src/pages/ChangePasswordPage.jsx
 
 import React, { useState } from "react";
-import { Lock, Key, Loader2, ArrowLeft } from "lucide-react";
+import { Lock, Key, Loader2 } from "lucide-react";
 
 // --- Import UI Components ---
 import PrimaryButton from '../components/PrimaryButton';
@@ -10,7 +10,14 @@ import MessageBox from '../components/MessageBox';
 
 import { auth, signInWithEmailAndPassword, updatePassword, updateUserInFirestore } from '../api/firebase';
 
-const ChangePasswordPage = ({ onForcedPasswordChangeComplete, userId, userDocId, userRole, isVoluntary = false, onCancel }) => {
+const ChangePasswordPage = ({ 
+    onPasswordChangeComplete,  // ✅ renamed from onForcedPasswordChangeComplete
+    userId, 
+    userDocId, 
+    userRole, 
+    isVoluntary = false, 
+    onCancel 
+}) => {
     const [oldPassword, setOldPassword] = useState("");
     const [newPassword, setNewPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
@@ -18,7 +25,6 @@ const ChangePasswordPage = ({ onForcedPasswordChangeComplete, userId, userDocId,
     const [message, setMessage] = useState({ title: "", text: "", type: "" });
     const [isLoading, setIsLoading] = useState(false);
 
-    // Password validation: at least 8 chars, letter, number, symbol
     const alphanumericSymbol = /^(?=.*[a-zA-Z])(?=.*[0-9])(?=.*[^a-zA-Z0-9\s]).{8,}$/;
 
     const handleChangePassword = async (e) => {
@@ -56,68 +62,59 @@ const ChangePasswordPage = ({ onForcedPasswordChangeComplete, userId, userDocId,
                 throw new Error("User not authenticated or email missing.");
             }
 
-            // 1. Re-authenticate user for security (only needed for voluntary change)
+            // Re-authenticate (only needed for voluntary change)
             if (isVoluntary) {
                 await signInWithEmailAndPassword(auth, user.email, oldPassword);
             }
 
-            // 2. Update password in Firebase Authentication
+            // Update password in Firebase Authentication
             await updatePassword(user, newPassword);
 
-            // 3. Update password flag in Firestore
+            // Update flag in Firestore
             await updateUserInFirestore(userDocId, {
                 mustChangePassword: false,
-                passwordLastChanged: new Date().toISOString()
+                passwordLastChanged: new Date().toISOString(),
             });
 
             setMessage({
                 title: "Success! 🔑",
                 text: "Your password has been securely updated.",
-                type: "success"
+                type: "success",
             });
             setIsMessageVisible(true);
 
             // Redirect user after success
-            if (isVoluntary) {
-                setTimeout(() => {
-                    if (onCancel) onCancel();
-                }, 1500);
-            } else {
-                setTimeout(() => {
-                    onForcedPasswordChangeComplete();
-                }, 1500);
-            }
+            setTimeout(() => {
+                if (onPasswordChangeComplete) onPasswordChangeComplete(); // ✅ unified callback
+            }, 1500);
 
         } catch (error) {
             console.error("Password update error:", error);
             let errorMessage = "Could not update password. Please try logging in again.";
 
-            if (error.code === 'auth/wrong-password') {
+            if (error.code === "auth/wrong-password") {
                 errorMessage = "Current password is incorrect.";
-            } else if (error.code === 'auth/requires-recent-login') {
+            } else if (error.code === "auth/requires-recent-login") {
                 errorMessage = "Please log in again to change your password.";
-            } else if (error.code === 'auth/weak-password') {
+            } else if (error.code === "auth/weak-password") {
                 errorMessage = "New password is too weak. Please choose a stronger password.";
             }
 
             setMessage({ title: "Update Failed", text: errorMessage, type: "error" });
             setIsMessageVisible(true);
         }
+
         setIsLoading(false);
     };
 
     const closeMessage = () => setIsMessageVisible(false);
-    
-    // Form validation check
+
     const isFormValid = () => {
         const newPassValid = newPassword && alphanumericSymbol.test(newPassword);
         const matchValid = newPassword === confirmPassword;
 
         if (isVoluntary) {
-            return oldPassword &&
-                newPassValid &&
-                matchValid &&
-                oldPassword !== newPassword;
+            return oldPassword && newPassValid && matchValid && oldPassword !== newPassword;
         } else {
             return newPassValid && matchValid;
         }
@@ -138,7 +135,9 @@ const ChangePasswordPage = ({ onForcedPasswordChangeComplete, userId, userDocId,
                 </div>
 
                 <p className="text-center text-red-600 mb-6 text-lg font-bold border-b pb-4">
-                    {isVoluntary ? "Update your password securely." : "You must change your temporary password immediately."}
+                    {isVoluntary
+                        ? "Update your password securely."
+                        : "You must change your temporary password immediately."}
                 </p>
 
                 <p className="text-center text-gray-600 mb-8 text-sm">
@@ -172,7 +171,6 @@ const ChangePasswordPage = ({ onForcedPasswordChangeComplete, userId, userDocId,
                         onChange={(e) => setConfirmPassword(e.target.value)}
                     />
 
-                    {/* Validation Messages */}
                     {newPassword && !alphanumericSymbol.test(newPassword) && (
                         <div className="mb-4 p-2 bg-yellow-50 border border-yellow-200 rounded text-yellow-700 text-sm">
                             **Security Requirement:** Password must be 8+ characters and contain a letter, a number, and a symbol.
@@ -184,18 +182,19 @@ const ChangePasswordPage = ({ onForcedPasswordChangeComplete, userId, userDocId,
                             New password and confirmation do not match.
                         </div>
                     )}
+
                     {isVoluntary && oldPassword && newPassword && oldPassword === newPassword && (
                         <div className="mb-4 p-2 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
                             New password must be different from current password.
                         </div>
                     )}
-                    {/* End Validation Messages */}
 
-                    <PrimaryButton
-                        type="submit"
-                        disabled={isLoading || !isFormValid()}
-                    >
-                        {isLoading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'Set New Password'}
+                    <PrimaryButton type="submit" disabled={isLoading || !isFormValid()}>
+                        {isLoading ? (
+                            <Loader2 className="w-5 h-5 animate-spin mx-auto" />
+                        ) : (
+                            "Set New Password"
+                        )}
                     </PrimaryButton>
                 </form>
 
@@ -214,3 +213,5 @@ const ChangePasswordPage = ({ onForcedPasswordChangeComplete, userId, userDocId,
 };
 
 export default ChangePasswordPage;
+
+
