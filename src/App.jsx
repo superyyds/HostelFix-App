@@ -1,10 +1,10 @@
 // App.jsx
 import React, { useState, useEffect, useCallback } from "react";
 import { AlertTriangle, Loader2 } from "lucide-react";
+import { collection, getDocs, addDoc, updateDoc, doc, deleteDoc } from "firebase/firestore";
 
 // --- Import UI Component ---
 import MessageBox from './components/MessageBox';
-import PrimaryButton from './components/PrimaryButton';
 
 // --- Import API / Firebase Helpers ---
 import { initializeApp } from "firebase/app";
@@ -137,9 +137,12 @@ const App = () => {
     const [message, setMessage] = useState({ title: "", text: "", type: "" });
     const [isManualLogout, setIsManualLogout] = useState(false);
     const [manualLogout, setManualLogout] = useState(false);
-    // complaint + feedback
+    
+    // complaint
     const [complaints, setComplaints] = useState([]);
     const [selected, setSelected] = useState(null);
+
+    // feedback
     const [feedbackList, setFeedbackList] = useState([]);
     const [editingFeedback, setEditingFeedback] = useState(null);
 
@@ -519,32 +522,26 @@ const App = () => {
         handleViewChange("login");
     };
 
-    // Complaint handlers (mocked for now)
+    // Complaint handlers
     const handleCreateComplaint = (complaint) => {
         setComplaints((prev) => [complaint, ...prev]);
-        console.log("Complaint created (mock):", complaint);
     };
 
-    const handleUpdateComplaint = (id, updates) => {
-        setComplaints(prev => prev.map(c => c._id === id ? { ...c, ...updates } : c));
-        console.log("Complaint updated (mock):", id, updates);
-    };
-
-    // Feedback handlers
+    // Feeedback handlers
     const handleFeedbackSubmit = async (feedback) => {
         try {
-            const feedbackCollectionPath = `artifacts/${appId}/public/data/feedbacks`;
             if (editingFeedback) {
-                const feedbackRef = doc(db, feedbackCollectionPath, feedback.id.toString());
+                // Update existing feedback
+                const feedbackRef = doc(db, "feedbacks", feedback.id.toString());
                 await updateDoc(feedbackRef, feedback);
+                setFeedbackList((prev) => prev.map((f) => (f.id === feedback.id ? feedback : f)));
                 setEditingFeedback(null);
             } else {
-                await addDoc(collection(db, feedbackCollectionPath), {
-                    ...feedback,
-                    userId: appState.userId,
-                });
+                // Add new feedback
+                const docRef = await addDoc(collection(db, "feedbacks"), feedback);
+                setFeedbackList((prev) => [...prev, { ...feedback, id: docRef.id }]);
             }
-            handleViewChange("studentFeedbackList");
+            setView("studentFeedbackList");
         } catch (error) {
             console.error("Error adding feedback: ", error);
         }
@@ -552,8 +549,8 @@ const App = () => {
 
     const handleDeleteFeedback = async (id) => {
         try {
-            const feedbackCollectionPath = `artifacts/${appId}/public/data/feedbacks`;
-            await deleteDoc(doc(db, feedbackCollectionPath, id.toString()));
+            await deleteDoc(doc(db, "feedbacks", id.toString()));
+            setFeedbackList((prev) => prev.filter((f) => f.id !== id));
         } catch (error) {
             console.error("Error deleting feedback: ", error);
         }
@@ -561,12 +558,12 @@ const App = () => {
 
     const handleEditFeedback = (feedback) => {
         setEditingFeedback(feedback);
-        handleViewChange("feedbackForm");
+        setView("feedbackForm");
     };
 
     const handleCancelEdit = () => {
         setEditingFeedback(null);
-        handleViewChange("studentFeedbackList");
+        setView("studentFeedbackList");
     };
 
     const handleMarkReviewed = async (id) => {
@@ -722,32 +719,20 @@ const App = () => {
                 );
 
             case "complaintList":
-                const userComplaints =
-                    appState.role === "student"
-                        ? complaints.filter((c) => c.userId === appState.userId)
-                        : complaints;
-                return (
-                    <ComplaintList
-                        list={userComplaints}
-                        onSelect={(c) => {
-                            setSelected(c);
-                            handleViewChange("complaintDetail");
-                        }}
-                        onBack={() => handleViewChange(appState.role)}
-                    />
-                );
-
+                return <ComplaintList 
+                            currentUser={appState.userData}
+                            onSelect={c=> { setSelected(c); handleViewChange("complaintDetail"); }}
+                            onBack={() => { setSelected(null); handleViewChange(appState.role); }}
+                        />;
+                    
             case "complaintDetail":
-                return (
-                    <ComplaintDetail
-                        complaint={selected}
-                        currentUser={appState.userData}
-                        onClose={() => handleViewChange("complaintList")}
-                        onUpdate={handleUpdateComplaint}
-                        onGiveFeedback={() => handleViewChange("feedbackForm")}
-                    />
-                );
-
+                return <ComplaintDetail
+                            complaint={selected}
+                            currentUser={appState.userData}
+                            onClose={() => { setSelected(null); handleViewChange("complaintList") }}
+                            onGiveFeedback={() => handleViewChange("feedbackForm")}
+                    />;
+            
             case "feedbackForm":
                 return (
                     <FeedbackForm
