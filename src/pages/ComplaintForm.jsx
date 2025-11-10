@@ -114,17 +114,6 @@ const ComplaintForm = ({ currentUser, onCreate, onClose }) => {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const filesToDataUrls = (files) => {
-    return Promise.all(
-        files.map(file => new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve({ name: file.name, dataUrl: reader.result });
-        reader.onerror = (err) => reject(err);
-        reader.readAsDataURL(file);
-        }))
-    );
-  };
-
   const handleSubmit = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
 
@@ -624,7 +613,7 @@ const ComplaintForm = ({ currentUser, onCreate, onClose }) => {
                             type="file" 
                             multiple 
                             accept="image/*" 
-                            onChange={(e) => setImages(Array.from(e.target.files))} 
+                            onChange={(e) => setImages(prev => [...prev, ...Array.from(e.target.files)])} 
                             className="hidden" 
                             id="image-upload"
                           />

@@ -1,18 +1,18 @@
 // src/pages/WardenDashboard.jsx
 import React from 'react';
-import { LogOut, Settings, AlertTriangle, MessageSquare, BarChart3, Users, Shield } from "lucide-react";
+import { LogOut, Settings, AlertTriangle, MessageSquare, Users, Shield } from "lucide-react";
 
 // --- Import UI Components ---
 import PrimaryButton from '../components/PrimaryButton';
 import DashboardCard from '../components/DashboardCard';
 
-const WardenDashboard = ({ onLogout, userId, userDocId, userRole, onViewChange }) => (
+const WardenDashboard = ({ onLogout, userDocId, userRole, onViewChange }) => (
     <div className="p-8 bg-gray-100 min-h-screen">
         <div className="max-w-7xl mx-auto">
             <h1 className="text-3xl font-extrabold text-gray-800 mb-6 border-b pb-2">Warden Portal - HostelFix Management</h1>
             <div className="bg-white p-6 rounded-2xl shadow-xl mb-8 flex justify-between items-center">
                 <div>
-                    <p className="text-xl text-gray-700">Welcome, Warden/Staff! Use the tools below to manage and resolve facility issues.</p>
+                    <p className="text-xl text-gray-700">Welcome, Warden! Use the tools below to manage and resolve facility issues.</p>
                     <p className="text-lg text-gray-500 mt-1">Firestore Doc ID: {userDocId} | Role: {userRole}</p>
                 </div>
                 <div className="flex items-center">

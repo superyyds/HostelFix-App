@@ -30,6 +30,7 @@ import FeedbackForm from './pages/FeedbackForm';
 import FeedbackViewer from './pages/FeedbackViewer';
 import FeedbackList from './pages/FeedbackList';
 import { wardenSessionCache } from './api/cache';
+import StaffDashboard from "./pages/StaffDashboard";
 
 // --- Robust Configuration Loading ---
 const appId = typeof __app_id !== 'undefined'
@@ -635,24 +636,33 @@ const App = () => {
         switch (view) {
             case "student":
                 return (
-                    <StudentDashboard
-                        onLogout={handleLogout}
-                        name={appState.userData?.name || ""}
-                        hostelId={appState.userData?.hostelId || ""}
-                        userRole={appState.role}
-                        onViewChange={handleViewChange}
-                    />
+                  <StudentDashboard
+                    onLogout={handleLogout}
+                    name={appState.userData?.name || ""}
+                    hostelId={appState.userData?.hostelId || ""}
+                    userRole={appState.role}
+                    onViewChange={handleViewChange}
+                  />
+                );
+
+            case "staff":
+                return (
+                  <StaffDashboard
+                    onLogout={handleLogout}
+                    name={appState.userData?.name || ""}
+                    userRole={appState.role}
+                    onViewChange={handleViewChange}
+                  />
                 );
 
             case "warden":
                 return (
-                    <WardenDashboard
-                        onLogout={handleLogout}
-                        userId={appState.userId}
-                        userDocId={appState.userDocId}
-                        userRole={appState.role}
-                        onViewChange={handleViewChange}
-                    />
+                  <WardenDashboard
+                    onLogout={handleLogout}
+                    userDocId={appState.userDocId}
+                    userRole={appState.role}
+                    onViewChange={handleViewChange}
+                  />
                 );
 
             case "register-user":
@@ -767,24 +777,33 @@ const App = () => {
             default:
                 if (appState.role === "warden") {
                     return (
-                        <WardenDashboard
-                            onLogout={handleLogout}
-                            userId={appState.userId}
-                            userDocId={appState.userDocId}
-                            userRole={appState.role}
-                            onViewChange={handleViewChange}
-                        />
+                      <WardenDashboard
+                          onLogout={handleLogout}
+                          userDocId={appState.userDocId}
+                          userRole={appState.role}
+                          onViewChange={handleViewChange}
+                      />
                     );
                 }
                 if (appState.role === "student") {
                     return (
-                        <StudentDashboard
-                            onLogout={handleLogout}
-                            userId={appState.userId}
-                            userDocId={appState.userDocId}
-                            userRole={appState.role}
-                            onViewChange={handleViewChange}
-                        />
+                      <StudentDashboard
+                        onLogout={handleLogout}
+                        name={appState.userData?.name || ""}
+                        hostelId={appState.userData?.hostelId || ""}
+                        userRole={appState.role}
+                        onViewChange={handleViewChange}
+                      />
+                    );
+                }
+                if (appState.role === "staff") {
+                    return (
+                      <StaffDashboard
+                        onLogout={handleLogout}
+                        name={appState.userData?.name || ""}
+                        userRole={appState.role}
+                        onViewChange={handleViewChange}
+                      />
                     );
                 }
                 return (
