@@ -534,7 +534,7 @@ const ComplaintDetail = ({ complaint, currentUser, onClose, onGiveFeedback }) =>
               </div>
 
               {/* Update button for warden */}
-              <div className="flex justify-end pt-4">
+              <div className="flex justify-center mt-6">
                 <PrimaryButton 
                   onClick={applyUpdate} 
                   disabled={isUpdating}
