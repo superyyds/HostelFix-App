@@ -532,7 +532,7 @@ const ComplaintForm = ({ currentUser, onCreate, onClose }) => {
                       <div className="mb-8">
                         <label className="block mb-3 font-medium text-lg flex items-center gap-2">
                           <ShieldAlert className="w-6 h-6 text-indigo-600" />
-                          Priority Level
+                          Urgency Level
                         </label>
                         <div className="flex flex-wrap justify-center gap-6">
                           {[
@@ -577,9 +577,9 @@ const ComplaintForm = ({ currentUser, onCreate, onClose }) => {
                         {/* Priority Description */}
                         <div className="mt-3 p-3 bg-gray-50 rounded-lg">
                           <p className="text-sm text-gray-600 text-center">
-                            {priority === "Low" ? "🟢 Low Priority - Minor issue that can be addressed when convenient" :
-                            priority === "Medium" ? "🟡 Medium Priority - Should be addressed within a few days" :
-                            "🔴 High Priority - Requires immediate attention and resolution"}
+                            {priority === "Low" ? "🟢 Low Urgency - Minor issue that can be addressed when convenient" :
+                            priority === "Medium" ? "🟡 Medium Urgency - Should be addressed within a few days" :
+                            "🔴 High Urgency - Requires immediate attention and resolution"}
                           </p>
                         </div>
                       </div>

@@ -47,7 +47,7 @@ const ComplaintList = ({ currentUser, onSelect, onBack }) => {
     if (filters.campus) result = result.filter((c) => c.campus === filters.campus);
     if (filters.status) result = result.filter((c) => c.status === filters.status);
 
-    if (sortBy === "priority") {
+    if (sortBy === "urgency") {
       const order = { High: 1, Medium: 2, Low: 3 };
       result.sort((a, b) => order[a.priority] - order[b.priority]);
     } else {
@@ -164,7 +164,7 @@ const ComplaintList = ({ currentUser, onSelect, onBack }) => {
                 onChange={(e) => setSortBy(e.target.value)}
               >
                 <option value="date">Latest</option>
-                <option value="priority">Priority</option>
+                <option value="urgency">Priority</option>
               </select>
             </div>
           </div>

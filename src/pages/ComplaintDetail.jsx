@@ -262,7 +262,7 @@ const ComplaintDetail = ({ complaint, currentUser, onClose, onGiveFeedback }) =>
               <div className="bg-gray-50 rounded-xl p-4 space-y-3 text-sm text-gray-700">
                 <InfoRow label="Category" value={complaint.category} />
                 <InfoRow
-                  label="Priority"
+                  label="Urgency"
                   value={
                     <span
                       className={`px-3 py-1 rounded-lg text-xs font-semibold ${
