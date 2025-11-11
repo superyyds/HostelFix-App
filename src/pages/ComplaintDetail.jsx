@@ -323,7 +323,7 @@ const ComplaintDetail = ({ complaint, currentUser, onClose, onGiveFeedback }) =>
 
               {/* Description */}
               <div className="mt-4">
-                <h4 className="text-md font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                <h4 className="text-lg font-semibold text-indigo-700 flex items-center gap-2">
                   <MessageSquare className="w-5 h-5 text-indigo-600" />
                   Description
                 </h4>
@@ -334,9 +334,9 @@ const ComplaintDetail = ({ complaint, currentUser, onClose, onGiveFeedback }) =>
 
               {/* Attachments */}
               <div className="mt-4">
-                <h4 className="text-md font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-indigo-600" />
-                  Attachments
+                <h4 className="text-lg font-semibold text-indigo-700 flex items-center gap-2">
+                  <ImageIcon className="w-5 h-5 text-indigo-600" />
+                  Attachment(s)
                 </h4>
                 {Array.isArray(complaint.attachments) && complaint.attachments.length > 0 ? (
                   <div className="flex flex-wrap gap-4 m-4">

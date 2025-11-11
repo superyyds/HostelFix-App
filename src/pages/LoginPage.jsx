@@ -186,8 +186,13 @@ const LoginPage = ({ onForgotPassword, onLoginFailure }) => {
 
             <div className="w-full max-w-md bg-white p-8 md:p-10 rounded-3xl shadow-2xl transition duration-500 transform hover:shadow-xl hover:scale-[1.01] z-10">
                 <div className="flex items-center justify-center mb-2">
-                    <Briefcase className="w-10 h-10 text-indigo-600 mr-3" />
-                    <h1 className="text-4xl font-extrabold text-gray-800 tracking-tight">HostelFix</h1>
+                    {/* <Briefcase className="w-10 h-10 text-indigo-600 mr-3" />
+                    <h1 className="text-4xl font-extrabold text-gray-800 tracking-tight">HostelFix</h1> */}
+                    <img
+                        src={"../public/logo.png"}
+                        alt={"HostelFix Logo"}
+                        className="w-3/4 object-cover"
+                    />
                 </div>
                 <p className="text-center text-gray-500 mb-8 text-lg font-light">
                     Sign in to manage facility issues.
