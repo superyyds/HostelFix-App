@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { collection, onSnapshot } from "firebase/firestore";
-import { Filter, SortAsc, MapPin, Home } from "lucide-react";
+import { Filter, SortAsc, MapPin, Home, StepBack } from "lucide-react";
 
 import { db } from "../api/firebase"; 
 import PrimaryButton from "../components/PrimaryButton";
@@ -28,6 +28,9 @@ const ComplaintList = ({ currentUser, onSelect, onBack }) => {
       // Filter by user role
       if (currentUser?.role === "student") {
         data = data.filter((c) => c.userId === currentUser.uid);
+      }
+      else if (currentUser?.role === "staff") {
+        data = data.filter((c) => c.assignedTo === currentUser.uid);
       }
 
       setList(data);
@@ -89,17 +92,23 @@ const ComplaintList = ({ currentUser, onSelect, onBack }) => {
             <h1 className="text-3xl font-extrabold text-indigo-700">
               {currentUser?.role === "warden"
                 ? "All Registered Complaints"
+                : currentUser?.role === "staff"
+                ? "Assigned Complaints"
                 : "Your Registered Complaints"}
             </h1>
             <p className="text-gray-600 mt-1">
               {currentUser?.role === "warden"
-                ? "Monitor and manage all student complaints."
+                ? "Monitor and manage the student complaints."
+                : currentUser?.role === "staff"
+                ? "View and address your assigned complaints."
                 : "Track your submitted complaints and their statuses."}
             </p>
           </div>
-          <PrimaryButton className="w-36 px-6" onClick={onBack}>
-            Back
-          </PrimaryButton>
+          <div>
+            <PrimaryButton className="w-auto mr-4" onClick={onBack}>
+              <div className="flex items-center justify-center"><StepBack className="w-5 h-5 mr-2" />Back</div>
+            </PrimaryButton>
+          </div>
         </div>
 
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
