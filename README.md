@@ -52,9 +52,7 @@ Step 2: Clone the Repository
 
 Run the following command to download the code:
 
----> git clone [YOUR_GITHUB_REPOSITORY_URL]
----> cd HostelFix-App
-
+---> git clone [YOUR_GITHUB_REPOSITORY_URL] ---> cd HostelFix-App
 
 (Replace [YOUR_GITHUB_REPOSITORY_URL] with the actual HTTPS or SSH link from your GitHub page.)
 
@@ -66,7 +64,6 @@ Step 3: Install Dependencies
 
 ---> npm install
 
-
 (This command reads the package.json file and installs all required packages, including react, vite, and lucide-react for icons.)
 
 Step 4: Run the Application
@@ -74,7 +71,6 @@ Step 4: Run the Application
 Start the local development server to view the application in your browser.
 
 ---> npm run dev
-
 
 The terminal will provide a local URL (e.g., http://localhost:5173/). Hold Ctrl (or Cmd on Mac) and click the link to open HostelFix.
 

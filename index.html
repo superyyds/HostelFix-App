@@ -13,6 +13,16 @@
         margin: 0;
         font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
       }
+
+      /* --- ⬇️ ADD THESE LINES HERE ⬇️ --- */
+      /* Hides the browser's default "eye" icon in password fields */
+      input[type="password"]::-ms-reveal {
+        display: none;
+      }
+      input[type="password"]::-webkit-password-reveal-button {
+        display: none;
+      }
+      /* --- ⬆️ END OF NEW CODE ⬆️ --- */
     </style>
   </head>
   <body>
