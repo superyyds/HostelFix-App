@@ -1,10 +1,11 @@
 import React, { useState, } from "react";
 import { motion } from "framer-motion";
 import { CheckCircle, ImageIcon, Blocks, ShieldAlert, Clipboard, Waves, Zap, MessageCircleQuestion, Bed, Home, Trash } from "lucide-react";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, query, where, getDocs } from "firebase/firestore";
 
 import { db } from "../api/firebase"; 
 import PrimaryButton from "../components/PrimaryButton";
+import { notifyWardenNewComplaint } from "../api/notifications";
 
 const STATUS = { PENDING: 'Pending', IN_PROGRESS: 'In Progress', RESOLVED: 'Resolved' };
 
@@ -154,6 +155,37 @@ const ComplaintForm = ({ currentUser, onCreate, onClose }) => {
         // write to Firestore
         const colRef = collection(db, "complaints");
         const ref = await addDoc(colRef, doc);
+
+        // 🔔 NOTIFICATION: Notify warden about new complaint
+        try {
+          // Find warden(s) - you might want to notify all wardens or specific ones
+          const wardensQuery = query(collection(db, "users"), where("role", "==", "warden"));
+          const wardenSnapshot = await getDocs(wardensQuery);
+          
+          // Notify all wardens
+          const notificationPromises = wardenSnapshot.docs.map(wardenDoc => {
+            const wardenData = wardenDoc.data();
+            // Use userId from document data (your schema uses 'userId', not 'uid')
+            const wardenId = wardenData.userId || wardenData.uid || wardenDoc.id;
+            
+            console.log('🔍 DEBUG: Notifying warden:', wardenId, 'Name:', wardenData.name);
+            
+            return notifyWardenNewComplaint({
+              complaintId: ref.id,
+              userName: currentUser.name || "Unknown",
+              category,
+              priority,
+              campus,
+              hostel
+            }, wardenId);
+          });
+          
+          await Promise.all(notificationPromises);
+          console.log('✅ Warden(s) notified about new complaint');
+        } catch (notifError) {
+          console.error('⚠️ Failed to send notifications:', notifError);
+          // Don't fail the complaint submission if notification fails
+        }
 
         // optional: attach the generated id locally (if you want)
         const created = { 

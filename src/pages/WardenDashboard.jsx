@@ -2,6 +2,7 @@ import React from 'react';
 import { LogOut, Settings, AlertTriangle, MessageSquare, Users, Shield, Home, AlertCircle } from "lucide-react";
 import PrimaryButton from '../components/PrimaryButton';
 import DashboardCard from '../components/DashboardCard';
+import NotificationBell from '../components/NotificationBell';
 
 const WardenDashboard = ({ onLogout, userId, userDocId, userRole, onViewChange }) => {
     // 🔑 ROLE VALIDATION - Only wardens can access
@@ -35,22 +36,30 @@ const WardenDashboard = ({ onLogout, userId, userDocId, userRole, onViewChange }
                 </h1>
             </div>
             
-            <div className="flex items-center">
+            <div className="flex items-center gap-4">
+                {/* Notification Bell */}
+                <NotificationBell 
+                    userId={userId} 
+                    onNotificationClick={(complaintId) => {
+                        onViewChange('complaintList');
+                    }}
+                />
+                
                 <button
-                        onClick={() => onViewChange('register-user')}
-                        className="mr-4 p-2 rounded-full bg-green-100 hover:bg-green-200 transition text-green-600 font-semibold"
-                        title="Register New User"
-                    >
-                        <Users className="w-8 h-8 text-green-600" />
+                    onClick={() => onViewChange('register-user')}
+                    className="p-2 rounded-full bg-green-100 hover:bg-green-200 transition text-green-600 font-semibold"
+                    title="Register New User"
+                >
+                    <Users className="w-8 h-8 text-green-600" />
                 </button>
                 <button
                     onClick={() => onViewChange('profile-management')}
-                    className="mr-4 p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition"
+                    className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition"
                     title="Profile Settings"
                 >
                     <Settings className="w-8 h-8 text-gray-600" />
                 </button>
-                <PrimaryButton onClick={onLogout} className="w-auto px-6 bg-red-500 hover:bg-red-600 ml-4">
+                <PrimaryButton onClick={onLogout} className="w-auto px-6 bg-red-500 hover:bg-red-600">
                     <div className="flex items-center justify-center"><LogOut className="w-5 h-5 mr-2" /> Log Out</div>
                 </PrimaryButton>
             </div>

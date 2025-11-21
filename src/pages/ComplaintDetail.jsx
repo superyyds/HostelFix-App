@@ -6,6 +6,12 @@ import { doc, updateDoc, getDocs, onSnapshot, query, collection, where } from "f
 import { db } from "../api/firebase";
 import InfoRow from "../components/InfoRow";
 import PrimaryButton from "../components/PrimaryButton";
+import { 
+  notifyStudentComplaintUpdated, 
+  notifyStaffComplaintAssigned, 
+  notifyStudentComplaintResolved, 
+  notifyNewMessage 
+} from "../api/notifications";
 
 const STATUS = { PENDING: 'Pending', IN_PROGRESS: 'In Progress', RESOLVED: 'Resolved' };
 
@@ -38,6 +44,7 @@ const ComplaintDetail = ({ complaint, currentUser, onClose, onGiveFeedback }) =>
 
   const isWarden = currentUser.role === "warden";
   const isStudent = currentUser.role === "student";
+  const isStaff = currentUser.role === "staff";
   
   // --- Functions ---
   const sendRemark = async () => {
@@ -58,6 +65,38 @@ const ComplaintDetail = ({ complaint, currentUser, onClose, onGiveFeedback }) =>
     try {
       const docRef = doc(db, "complaints", complaint._id);
       await updateDoc(docRef, { remarks: newRemarks });
+
+      // 🔔 NOTIFICATION #7: Notify about new message
+      // Notify student and assigned staff (not warden)
+      if (!isWarden) {
+        const recipientIds = [];
+        
+        // Add student (complaint creator) if sender is not student
+        if (!isStudent && complaint.userId) {
+          recipientIds.push(complaint.userId);
+        }
+        
+        // Add assigned staff if sender is not staff and complaint is assigned
+        if (!isStaff && complaint.assignedTo) {
+          recipientIds.push(complaint.assignedTo);
+        }
+
+        if (recipientIds.length > 0) {
+          try {
+            await notifyNewMessage(
+              {
+                complaintId: complaint._id,
+                category: complaint.category
+              },
+              recipientIds,
+              currentUser.name || "Someone"
+            );
+            console.log('✅ Message notification sent');
+          } catch (notifError) {
+            console.error('⚠️ Failed to send message notification:', notifError);
+          }
+        }
+      }
     } catch (err) {
       console.error("Error updating remarks:", err);
     }
@@ -67,8 +106,13 @@ const ComplaintDetail = ({ complaint, currentUser, onClose, onGiveFeedback }) =>
   const applyUpdate = async () => {
     setIsUpdating(true);
     const updates = {};
+    
+    // Track what changed for notifications
+    const statusChanged = formStatus !== displayStatus;
+    const assignmentChanged = formAssignedToId !== displayAssignedToId;
+    const isBeingResolved = formStatus === STATUS.RESOLVED && displayStatus !== STATUS.RESOLVED;
 
-    if (formAssignedToId !== displayAssignedToId) {
+    if (assignmentChanged) {
         updates.assignedTo = formAssignedToId || null;
     }
     if (formStatus === STATUS.RESOLVED) {
@@ -103,6 +147,55 @@ const ComplaintDetail = ({ complaint, currentUser, onClose, onGiveFeedback }) =>
       try {
         const docRef = doc(db, "complaints", complaint._id);
         await updateDoc(docRef, updates);
+        
+        // 🔔 NOTIFICATIONS
+        try {
+          // #2: Notify student when warden updates complaint (approves/changes status)
+          if (isWarden && statusChanged && complaint.userId) {
+            await notifyStudentComplaintUpdated(
+              {
+                complaintId: complaint._id,
+                status: formStatus,
+                category: complaint.category
+              },
+              complaint.userId
+            );
+            console.log('✅ Student notified about complaint update');
+          }
+
+          // #3: Notify staff when complaint is assigned to them
+          if (isWarden && assignmentChanged && formAssignedToId) {
+            await notifyStaffComplaintAssigned(
+              {
+                complaintId: complaint._id,
+                userName: complaint.userName,
+                category: complaint.category,
+                priority: complaint.priority,
+                campus: complaint.campus,
+                hostel: complaint.hostel
+              },
+              formAssignedToId
+            );
+            console.log('✅ Staff notified about new assignment');
+          }
+
+          // #8: Notify student when staff resolves complaint
+          if (isStaff && isBeingResolved && complaint.userId) {
+            await notifyStudentComplaintResolved(
+              {
+                complaintId: complaint._id,
+                category: complaint.category,
+                resolvedBy: currentUser.name || "Staff"
+              },
+              complaint.userId
+            );
+            console.log('✅ Student notified about complaint resolution');
+          }
+        } catch (notifError) {
+          console.error('⚠️ Failed to send notifications:', notifError);
+          // Don't fail the update if notification fails
+        }
+
         setRemarks("");
         setProofImage([]);
       } catch (err) {

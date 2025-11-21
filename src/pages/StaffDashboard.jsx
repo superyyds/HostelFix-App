@@ -4,8 +4,9 @@ import { LogOut, Settings, MessageSquare, Shield, Home, AlertCircle } from "luci
 // --- Import UI Components ---
 import PrimaryButton from '../components/PrimaryButton';
 import DashboardCard from '../components/DashboardCard';
+import NotificationBell from '../components/NotificationBell';
 
-const StaffDashboard = ({ onLogout, name, userRole, onViewChange }) => {
+const StaffDashboard = ({ onLogout, name, userRole, onViewChange, userId }) => {
     // 🔑 ROLE VALIDATION - Only staff can access
     if (userRole !== 'staff') {
         return (
@@ -37,15 +38,23 @@ const StaffDashboard = ({ onLogout, name, userRole, onViewChange }) => {
                 </h1>
             </div>
             
-            <div className="flex items-center">
+            <div className="flex items-center gap-4">
+                {/* Notification Bell */}
+                <NotificationBell 
+                    userId={userId} 
+                    onNotificationClick={(complaintId) => {
+                        onViewChange('complaintList');
+                    }}
+                />
+                
                 <button
                     onClick={() => onViewChange('profile-management')}
-                    className="mr-4 p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition"
+                    className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition"
                     title="Profile Settings"
                 >
                     <Settings className="w-8 h-8 text-gray-600" />
                 </button>
-                <PrimaryButton onClick={onLogout} className="w-auto px-6 bg-red-500 hover:bg-red-600 ml-4">
+                <PrimaryButton onClick={onLogout} className="w-auto px-6 bg-red-500 hover:bg-red-600">
                     <div className="flex items-center justify-center"><LogOut className="w-5 h-5 mr-2" /> Log Out</div>
                 </PrimaryButton>
             </div>

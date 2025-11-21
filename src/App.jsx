@@ -632,7 +632,7 @@ const handleMarkReviewed = async (id) => {
             case "student":
                 const studentCheck = protectRoute('student');
                 if (studentCheck) return studentCheck;
-                return <StudentDashboard onLogout={handleLogout} name={appState.userData?.name || ""} hostelId={appState.userData?.hostelId || ""} userRole={appState.role} onViewChange={handleViewChange} />;
+                return <StudentDashboard onLogout={handleLogout} name={appState.userData?.name || ""} hostelId={appState.userData?.hostelId || ""} userRole={appState.role} onViewChange={handleViewChange} userId={appState.userId} />;
 
             case "warden":
                 const wardenCheck = protectRoute('warden');
@@ -642,7 +642,7 @@ const handleMarkReviewed = async (id) => {
             case "staff":
                 const staffCheck = protectRoute('staff');
                 if (staffCheck) return staffCheck;
-                return <StaffDashboard onLogout={handleLogout} name={appState.userData?.name || ""} staffWardenId={appState.userData?.staffWardenId || ""} userRole={appState.role} onViewChange={handleViewChange} />;
+                return <StaffDashboard onLogout={handleLogout} name={appState.userData?.name || ""} staffWardenId={appState.userData?.staffWardenId || ""} userRole={appState.role} onViewChange={handleViewChange} userId={appState.userId} />;
                 
             case "register-user":
                 const registerCheck = protectRoute('warden');
