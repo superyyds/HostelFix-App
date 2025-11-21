@@ -4,7 +4,7 @@ import PrimaryButton from '../components/PrimaryButton';
 import DashboardCard from '../components/DashboardCard';
 import NotificationBell from '../components/NotificationBell';
 
-const StudentDashboard = ({ onLogout, name, hostelId, userRole, onViewChange, userId }) => {
+const StudentDashboard = ({ onLogout, name, hostelId, userRole, onViewChange, userId, onNotificationClick }) => {
     // 🔑 ROLE VALIDATION - Only students can access
     if (userRole !== 'student') {
         return (
@@ -13,7 +13,7 @@ const StudentDashboard = ({ onLogout, name, hostelId, userRole, onViewChange, us
                 <h2 className="text-2xl font-bold text-red-800 mb-2">Access Denied</h2>
                 <p className="text-red-700 text-center mb-6">
                     This dashboard is only accessible to student accounts. 
-                    Your role is: <strong>{userRole}</strong>
+                    Your role is: <strong>{userRole.charAt(0).toUpperCase() + userRole.slice(1)}</strong>
                 </p>
                 <PrimaryButton onClick={onLogout} className="bg-red-600 hover:bg-red-700">
                     <LogOut className="w-5 h-5 mr-2" /> Back to Login
@@ -24,7 +24,7 @@ const StudentDashboard = ({ onLogout, name, hostelId, userRole, onViewChange, us
 
     return (
         <div className="bg-gray-100 min-h-screen">
-        <div className="flex items-center bg-white p-4 shadow-xl mb-8 px-10">
+        <div className="flex items-center bg-indigo-50 p-4 shadow-xl mb-8 px-10">
             <div className="flex items-center flex-grow">
                 <img
                     src={"../public/logo.png"}
@@ -32,23 +32,20 @@ const StudentDashboard = ({ onLogout, name, hostelId, userRole, onViewChange, us
                     className="h-14 w-auto"
                 />
                 <h1 className="text-2xl font-extrabold text-indigo-700 ml-3">
-                    HostelFix <span className="text-gray-500">- Student Portal</span> {/* Differentiate the portal name */}
+                    Student Portal {/* Differentiate the portal name */}
                 </h1>
             </div>
             
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-6 mr-6">
                 {/* Notification Bell */}
                 <NotificationBell 
                     userId={userId} 
-                    onNotificationClick={(complaintId) => {
-                        // Navigate to complaint list, then detail
-                        onViewChange('complaintList');
-                    }}
+                    onNotificationClick={onNotificationClick}
                 />
                 
                 <button
                     onClick={() => onViewChange('profile-management')}
-                    className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition"
+                    className="p-2 rounded-full hover:bg-gray-200 transition"
                     title="Profile Settings"
                 >
                     <Settings className="w-8 h-8 text-gray-600" />
@@ -72,7 +69,7 @@ const StudentDashboard = ({ onLogout, name, hostelId, userRole, onViewChange, us
                     <p className="text-lg text-gray-600 mt-3">
                     Hostel ID : <span className="font-medium text-indigo-700">{hostelId}</span>
                     <span className="mx-2">|</span>
-                    Role : <span className="font-medium text-indigo-700">{userRole}</span>
+                    Role : <span className="font-medium text-indigo-700">{userRole.charAt(0).toUpperCase() + userRole.slice(1)}</span>
                     </p>
                     <p className="text-lg text-gray-500 mt-3">
                     Let's submit your complaints and feedback regarding hostel issues through our portal.

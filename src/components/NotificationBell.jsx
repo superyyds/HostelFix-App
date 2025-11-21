@@ -112,10 +112,10 @@ const NotificationBell = ({ userId, onNotificationClick }) => {
       {/* Bell Icon Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors duration-200"
+        className="relative p-2.5 rounded-full hover:bg-indigo-100 transition-colors duration-200"
         title="Notifications"
       >
-        <Bell className="w-6 h-6 text-gray-600" />
+        <Bell className="w-7 h-7 text-indigo-600" />
         
         {/* Unread Badge */}
         {unreadCount > 0 && (

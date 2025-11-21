@@ -10,6 +10,7 @@ import {
   User,
 } from "lucide-react";
 import PrimaryButton from "../components/PrimaryButton";
+import MessageBox from "../components/MessageBox";
 import { collection, onSnapshot } from "firebase/firestore";
 
 import { db } from "../api/firebase";
@@ -36,7 +37,7 @@ const FeedbackForm = ({
   const [image, setImage] = useState(editingFeedback?.image || null);
   const fileInputRef = useRef(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [messageBox, setMessageBox] = useState({ visible: false, type: "", text: "" });
+  const [messageBox, setMessageBox] = useState({ visible: false, type: "", title: "", text: "" });
 
   // --- Step 2 (Complaint ID) ---
   const [selectedComplaintId, setSelectedComplaintId] = useState("");
@@ -176,6 +177,7 @@ const FeedbackForm = ({
       setMessageBox({
         visible: true,
         type: "error",
+        title: "Invalid Image Format",
         text: "Only JPG and PNG images are allowed.",
       });
       return;
@@ -184,6 +186,7 @@ const FeedbackForm = ({
       setMessageBox({
         visible: true,
         type: "error",
+        title: "Image Too Large",
         text: "Image size must be under 1MB.",
       });
       return;
@@ -202,6 +205,7 @@ const FeedbackForm = ({
       setMessageBox({
         visible: true,
         type: "error",
+        title: "Missing Complaint",
         text: "Please select a complaint to link your feedback.",
       });
       return;
@@ -212,6 +216,7 @@ const FeedbackForm = ({
       setMessageBox({
         visible: true,
         type: "error",
+        title: "Incomplete Rating",
         text: "Please rate all categories before submitting.",
       });
       return;
@@ -221,6 +226,7 @@ const FeedbackForm = ({
       setMessageBox({
         visible: true,
         type: "error",
+        title: "Feedback Too Short",
         text: "Feedback must be at least 10 characters long.",
       });
       return;
@@ -247,6 +253,7 @@ const FeedbackForm = ({
       setMessageBox({
         visible: true,
         type: "success",
+        title: editingFeedback ? "Feedback Updated!" : "Feedback Submitted!",
         text: editingFeedback
           ? "Your feedback has been updated successfully."
           : "Thank you! Your feedback has been submitted successfully.",
@@ -263,6 +270,7 @@ const FeedbackForm = ({
       setMessageBox({
         visible: true,
         type: "error",
+        title: "Submission Failed",
         text: "An error occurred while submitting feedback. Please try again later.",
       });
     } finally {
@@ -278,7 +286,7 @@ const FeedbackForm = ({
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-100 to-indigo-200 py-10">
+    <div className="min-h-screen bg-indigo-50 py-10">
       <div className="max-w-5xl mx-auto px-6">
         <div className="flex items-center justify-between mb-8">
           <div>
@@ -627,7 +635,7 @@ const FeedbackForm = ({
           </div>
 
           {/* Step Navigation */}
-          <div className="p-6 flex justify-between items-center border-t bg-gray-50">
+          <div className="p-6 flex justify-between items-center gap-6 border-t bg-gray-50">
             <button
               onClick={handlePrev}
               className={`
@@ -645,7 +653,7 @@ const FeedbackForm = ({
             {step < 3 && (
               <PrimaryButton
                 onClick={handleNext}
-                className="bg-indigo-600 hover:bg-indigo-700"
+                className="w-full bg-indigo-600 hover:bg-indigo-700"
                 type="button"
               >
                 Next
@@ -656,30 +664,15 @@ const FeedbackForm = ({
 
         {/* Message Box */}
         {messageBox.visible && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.3 }}
-            className={`fixed top-6 right-6 z-50 flex items-center gap-3 p-4 rounded-lg shadow-lg transition-all ${
-              messageBox.type === "success"
-                ? "bg-green-100 text-green-700"
-                : "bg-red-100 text-red-700"
-            }`}
-          >
-            {messageBox.type === "success" ? (
-              <CheckCircle className="w-5 h-5" />
-            ) : (
-              <AlertTriangle className="w-5 h-5" />
-            )}
-            <span className="font-medium">{messageBox.text}</span>
-            <button
-              onClick={() => setMessageBox({ ...messageBox, visible: false })}
-              className="ml-3 text-sm underline hover:opacity-80 focus:outline-none focus:ring-1 focus:ring-gray-400 rounded"
-            >
-              Close
-            </button>
-          </motion.div>
+          <div className="fixed top-4 right-4 z-50 max-w-sm w-full p-2">
+            <MessageBox
+              title={messageBox.title}
+              text={messageBox.text}
+              type={messageBox.type}
+              onClose={() => setMessageBox({ visible: false, type: "", title: "", text: "" })}
+              className="pointer-events-auto"
+            />
+          </div>
         )}
       </div>
     </div>

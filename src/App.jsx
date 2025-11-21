@@ -20,6 +20,7 @@ import ComplaintDetail from './pages/ComplaintDetail';
 import FeedbackForm from './pages/FeedbackForm';
 import FeedbackViewer from './pages/FeedbackViewer';
 import FeedbackList from './pages/FeedbackList';
+import GenerateReports from './pages/GenerateReports';
 import { wardenSessionCache } from './api/cache';
 
 // Firebase config (your existing config)
@@ -111,6 +112,7 @@ const App = () => {
     const [selected, setSelected] = useState(null);
     const [feedbackList, setFeedbackList] = useState([]);
     const [editingFeedback, setEditingFeedback] = useState(null);
+    const [isFromNotification, setIsFromNotification] = useState(false);
 
     // Consolidated close message handler
     const closeMessage = () => {
@@ -138,7 +140,8 @@ const App = () => {
             'warden', 'student', 'staff', 
             'register-user', 'profile-management', 'change-password-voluntary',
             'complaintList', 'complaintDetail', 'complaintForm',
-            'feedbackViewer', 'studentFeedbackList', 'feedbackForm'
+            'feedbackViewer', 'studentFeedbackList', 'feedbackForm',
+            'generateReports'
         ];
 
         if (publicViews.includes(hash)) return hash;
@@ -230,6 +233,7 @@ const App = () => {
         let isInitialLoad = true;
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
             console.log("🔍 DEBUG: Auth state changed - User:", user ? "Signed in" : "Signed out");
+            if (user) console.log("🆔 DEBUG: Current User UID:", user.uid);
 
             if (isManualLogout) {
                 console.log("🔒 DEBUG: Manual logout in progress - ignoring auth state change");
@@ -357,7 +361,9 @@ const App = () => {
 
     // Feedback fetching
     useEffect(() => {
-        if (!appState.isAuthReady) return;
+        // Only fetch feedbacks if auth is ready AND user is authenticated
+        if (!appState.isAuthReady || !appState.isAuthenticated) return;
+        
         let unsubscribe = () => { };
         const fetchFeedbacks = async () => {
             try {
@@ -380,7 +386,7 @@ const App = () => {
             console.log("Cleaning up feedback listener.");
             unsubscribe();
         };
-    }, [appState.isAuthReady]);
+    }, [appState.isAuthReady, appState.isAuthenticated]);
 
     // Other handlers
     const handleProfileUpdate = (updatedUserDataFromChild) => {
@@ -544,43 +550,100 @@ const handleCancelEdit = () => {
     handleViewChange("studentFeedbackList");
 };
 
-const handleMarkReviewed = async (id) => {
-    try {
-        
-        if (appState.role !== 'warden') {
-            throw new Error("Only wardens can mark feedback as reviewed");
+    const handleMarkReviewed = async (id) => {
+        try {
+            
+            if (appState.role !== 'warden') {
+                throw new Error("Only wardens can mark feedback as reviewed");
+            }
+
+            const feedbackRef = doc(db, "feedbacks", id);
+            await updateDoc(feedbackRef, {
+                reviewed: true,
+                reviewedAt: new Date().toISOString(),
+                reviewedBy: appState.userData?.name || appState.userId,
+                updatedAt: new Date().toISOString()
+            });
+            
+            
+            setMessage({
+                title: "Feedback Reviewed",
+                text: "Feedback has been marked as reviewed.",
+                type: "success"
+            });
+            setIsMessageVisible(true);
+            
+            setTimeout(() => {
+                setIsMessageVisible(false);
+            }, 3000);
+
+        } catch (error) {
+
+            setMessage({
+                title: "Update Failed",
+                text: error.message || "Failed to mark feedback as reviewed. Please try again.",
+                type: "error"
+            });
+            setIsMessageVisible(true);
+        }
+    };
+
+    // Handle notification click - fetch complaint and show detail
+    const handleNotificationClick = async (complaintId) => {
+        if (!complaintId) {
+            handleViewChange('complaintList');
+            return;
         }
 
-        const feedbackRef = doc(db, "feedbacks", id);
-        await updateDoc(feedbackRef, {
-            reviewed: true,
-            reviewedAt: new Date().toISOString(),
-            reviewedBy: appState.userData?.name || appState.userId,
-            updatedAt: new Date().toISOString()
-        });
-        
-        
-        setMessage({
-            title: "Feedback Reviewed",
-            text: "Feedback has been marked as reviewed.",
-            type: "success"
-        });
-        setIsMessageVisible(true);
-        
-        setTimeout(() => {
-            setIsMessageVisible(false);
-        }, 3000);
+        try {
+            // Show loading indicator if needed, but for now we just fetch
+            const docRef = doc(db, 'complaints', complaintId);
+            const docSnap = await getDoc(docRef);
+            
+            if (docSnap.exists()) {
+                // Construct complaint object compatible with ComplaintDetail
+                const complaintData = { _id: docSnap.id, ...docSnap.data() };
 
-    } catch (error) {
+                // 🔑 CHECK FOR STAFF ASSIGNMENT VALIDITY
+                if (appState.role === 'staff') {
+                    // Check if the complaint is currently assigned to this staff member
+                    const myStaffUid = appState.userId;
+                    
+                    // Only block access if it IS assigned but NOT to this staff
+                    // If assignedTo is null/undefined, it might be unassigned, which maybe they can see?
+                    // Usually staff can only see assigned complaints.
+                    // Assuming logic: Staff can only view complaints assigned to them.
+                    
+                    if (complaintData.assignedTo && complaintData.assignedTo !== myStaffUid) {
+                        setMessage({
+                            title: "Access Denied",
+                            text: "You are unable to view this complaint because it was assigned to another staff.",
+                            type: "error"
+                        });
+                        setIsMessageVisible(true);
+                        // Auto-hide the message after 3 seconds
+                        setTimeout(() => setIsMessageVisible(false), 5000);
+                        return;
+                    }
+                }
 
-        setMessage({
-            title: "Update Failed",
-            text: error.message || "Failed to mark feedback as reviewed. Please try again.",
-            type: "error"
-        });
-        setIsMessageVisible(true);
-    }
-};
+                setSelected(complaintData);
+                setIsFromNotification(true); // Track that this came from a notification
+                handleViewChange('complaintDetail');
+            } else {
+                setMessage({ 
+                    title: "Complaint Not Found", 
+                    text: "The complaint you are looking for may have been deleted.", 
+                    type: "error" 
+                });
+                setIsMessageVisible(true);
+                handleViewChange('complaintList');
+            }
+        } catch (error) {
+            console.error("Error fetching complaint from notification:", error);
+            handleViewChange('complaintList');
+        }
+    };
 
     const renderView = () => {
         if (appState.loading || !appState.isAuthReady || isRegistering) {
@@ -632,17 +695,17 @@ const handleMarkReviewed = async (id) => {
             case "student":
                 const studentCheck = protectRoute('student');
                 if (studentCheck) return studentCheck;
-                return <StudentDashboard onLogout={handleLogout} name={appState.userData?.name || ""} hostelId={appState.userData?.hostelId || ""} userRole={appState.role} onViewChange={handleViewChange} userId={appState.userId} />;
+                return <StudentDashboard onLogout={handleLogout} name={appState.userData?.name || ""} hostelId={appState.userData?.hostelId || ""} userRole={appState.role} onViewChange={handleViewChange} userId={appState.userId} onNotificationClick={handleNotificationClick} />;
 
             case "warden":
                 const wardenCheck = protectRoute('warden');
                 if (wardenCheck) return wardenCheck;
-                return <WardenDashboard onLogout={handleLogout} userId={appState.userId} userDocId={appState.userDocId} userRole={appState.role} onViewChange={handleViewChange} />;
+                return <WardenDashboard onLogout={handleLogout} userId={appState.userId} userDocId={appState.userDocId} staffWardenId={appState.userData?.staffWardenId || ""} userRole={appState.role} onViewChange={handleViewChange} onNotificationClick={handleNotificationClick} />;
             
             case "staff":
                 const staffCheck = protectRoute('staff');
                 if (staffCheck) return staffCheck;
-                return <StaffDashboard onLogout={handleLogout} name={appState.userData?.name || ""} staffWardenId={appState.userData?.staffWardenId || ""} userRole={appState.role} onViewChange={handleViewChange} userId={appState.userId} />;
+                return <StaffDashboard onLogout={handleLogout} name={appState.userData?.name || ""} staffWardenId={appState.userData?.staffWardenId || ""} userRole={appState.role} onViewChange={handleViewChange} userId={appState.userId} onNotificationClick={handleNotificationClick} />;
                 
             case "register-user":
                 const registerCheck = protectRoute('warden');
@@ -670,12 +733,47 @@ const handleMarkReviewed = async (id) => {
                 return <ComplaintList currentUser={appState.userData} onSelect={c=> { setSelected(c); handleViewChange("complaintDetail"); }} onBack={() => { setSelected(null); handleViewChange(appState.role); }} />;
             
             case "complaintDetail":
-                return <ComplaintDetail complaint={selected} currentUser={appState.userData} onClose={() => { setSelected(null); handleViewChange("complaintList") }} onGiveFeedback={() => handleViewChange("feedbackForm")} />;
+                return <ComplaintDetail 
+                    complaint={selected} 
+                    currentUser={appState.userData} 
+                    onClose={(result) => { 
+                        setSelected(null); 
+                        
+                        // If accessed from notification, return to dashboard
+                        // Otherwise, return to complaint list
+                        const returnView = isFromNotification ? appState.role : "complaintList";
+                        setIsFromNotification(false); // Reset the flag
+                        
+                        // Always redirect - ensure this happens immediately
+                        handleViewChange(returnView);
+                        
+                        // Show success notification if update was successful
+                        if (result && result.success) {
+                            setMessage({
+                                title: "Complaint Updated!",
+                                text: result.message || "Complaint updated successfully!",
+                                type: "success"
+                            });
+                            setIsMessageVisible(true);
+                            
+                            // Auto-hide after 5 seconds
+                            setTimeout(() => {
+                                setIsMessageVisible(false);
+                            }, 5000);
+                        }
+                    }} 
+                    onGiveFeedback={() => handleViewChange("feedbackForm")} 
+                />;
 
             case "feedbackViewer":
                 const feedbackViewerCheck = protectRoute('warden');
                 if (feedbackViewerCheck) return feedbackViewerCheck;
                 return <FeedbackViewer feedbackList={feedbackList} onBack={() => handleViewChange("warden")} onMarkReviewed={handleMarkReviewed} />;
+
+            case "generateReports":
+                const reportCheck = protectRoute('warden');
+                if (reportCheck) return reportCheck;
+                return <GenerateReports onBack={() => handleViewChange("warden")} />;
 
             case "studentFeedbackList":
                 const studentFeedbackCheck = protectRoute('student');

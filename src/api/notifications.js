@@ -44,13 +44,17 @@ export const createNotification = async (notificationData) => {
     };
 
     console.log('🔍 DEBUG: Creating notification for recipient:', notificationData.recipientId);
+    console.log('📄 DEBUG: Notification payload:', JSON.stringify(notification));
 
     const docRef = await addDoc(collection(db, 'notifications'), notification);
-    console.log('✅ Notification created:', docRef.id);
+    console.log('✅ Notification created successfully with ID:', docRef.id);
     return docRef.id;
   } catch (error) {
     console.error('❌ Error creating notification:', error);
     console.error('❌ Notification data:', notificationData);
+    if (error.code === 'permission-denied') {
+        console.error('🚫 Permission Denied: Check Firestore Rules for "notifications" collection.');
+    }
     throw error;
   }
 };
@@ -300,6 +304,72 @@ export const notifyNewMessage = async (complaintData, recipientIds, senderName) 
     await Promise.all(notificationPromises);
   } catch (error) {
     console.error('❌ Error notifying about new message:', error);
+  }
+};
+
+/**
+ * 6. Notify warden when staff resolves a complaint
+ */
+export const notifyWardenComplaintResolved = async (complaintData, wardenId) => {
+  try {
+    await createNotification({
+      type: 'COMPLAINT_RESOLVED',
+      recipientId: wardenId,
+      title: 'Complaint Resolved',
+      message: `${complaintData.resolvedBy} has resolved a complaint. Click to see details.`,
+      complaintId: complaintData.complaintId,
+      metadata: {
+        category: complaintData.category,
+        resolvedBy: complaintData.resolvedBy,
+        studentName: complaintData.studentName
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error notifying warden about resolution:', error);
+  }
+};
+
+/**
+ * 7. Notify staff when warden changes complaint status
+ */
+export const notifyStaffStatusChanged = async (complaintData, staffId) => {
+  try {
+    await createNotification({
+      type: 'STATUS_CHANGED_BY_WARDEN',
+      recipientId: staffId,
+      title: 'Status Changed by Warden',
+      message: `Warden has changed the complaint status to "${complaintData.status}". Click to see details.`,
+      complaintId: complaintData.complaintId,
+      metadata: {
+        category: complaintData.category,
+        newStatus: complaintData.status,
+        changedBy: complaintData.changedBy || 'Warden'
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error notifying staff about status change:', error);
+  }
+};
+
+/**
+ * 8. Notify student when warden changes complaint status
+ */
+export const notifyStudentStatusChangedByWarden = async (complaintData, studentId) => {
+  try {
+    await createNotification({
+      type: 'STATUS_CHANGED_BY_WARDEN',
+      recipientId: studentId,
+      title: 'Complaint Status Updated',
+      message: `Your complaint is reopened again. Click to see the details.`,
+      complaintId: complaintData.complaintId,
+      metadata: {
+        category: complaintData.category,
+        newStatus: complaintData.status,
+        changedBy: complaintData.changedBy || 'Warden'
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error notifying student about status change:', error);
   }
 };
 

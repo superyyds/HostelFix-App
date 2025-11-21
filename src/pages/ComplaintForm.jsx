@@ -1,10 +1,11 @@
 import React, { useState, } from "react";
 import { motion } from "framer-motion";
-import { CheckCircle, ImageIcon, Blocks, ShieldAlert, Clipboard, Waves, Zap, MessageCircleQuestion, Bed, Home, Trash } from "lucide-react";
+import { CheckCircle, ImageIcon, Blocks, ShieldAlert, Clipboard, Waves, Zap, MessageCircleQuestion, Bed, Home, Trash, AlertTriangle } from "lucide-react";
 import { collection, addDoc, serverTimestamp, query, where, getDocs } from "firebase/firestore";
 
 import { db } from "../api/firebase"; 
 import PrimaryButton from "../components/PrimaryButton";
+import MessageBox from "../components/MessageBox";
 import { notifyWardenNewComplaint } from "../api/notifications";
 
 const STATUS = { PENDING: 'Pending', IN_PROGRESS: 'In Progress', RESOLVED: 'Resolved' };
@@ -18,6 +19,7 @@ const ComplaintForm = ({ currentUser, onCreate, onClose }) => {
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState("Medium");
   const [images, setImages] = useState([]);
+  const [messageBox, setMessageBox] = useState({ visible: false, type: "", title: "", text: "" });
 
   const campusOptions = {
     "Main Campus": {
@@ -165,8 +167,8 @@ const ComplaintForm = ({ currentUser, onCreate, onClose }) => {
           // Notify all wardens
           const notificationPromises = wardenSnapshot.docs.map(wardenDoc => {
             const wardenData = wardenDoc.data();
-            // Use userId from document data (your schema uses 'userId', not 'uid')
-            const wardenId = wardenData.userId || wardenData.uid || wardenDoc.id;
+            // Always use the document ID as it matches the Auth UID
+            const wardenId = wardenDoc.id;
             
             console.log('🔍 DEBUG: Notifying warden:', wardenId, 'Name:', wardenData.name);
             
@@ -202,14 +204,36 @@ const ComplaintForm = ({ currentUser, onCreate, onClose }) => {
         // call local callback to update local state / UI
         onCreate(created);
 
+        // Show success notification
+        setMessageBox({
+          visible: true,
+          type: "success",
+          title: "Complaint Submitted!",
+          text: "Complaint submitted successfully! The warden has been notified."
+        });
+
         setTimeout(() => {
             onClose();
             // reset form
             setStep(1); setCampus(''); setHostel(''); setCategory(''); setDescription(''); setPriority('Medium'); setImages([]);
         }, 1200);
+
+        // Auto-hide notification after 5 seconds
+        setTimeout(() => {
+          setMessageBox({ visible: false, type: "", title: "", text: "" });
+        }, 5000);
     } catch (err) {
         console.error("Failed to submit complaint:", err);
-        alert("Failed to submit. Check console for details.");
+        setMessageBox({
+          visible: true,
+          type: "error",
+          title: "Submission Failed",
+          text: "Failed to submit complaint. Please try again."
+        });
+        // Auto-hide error notification after 5 seconds
+        setTimeout(() => {
+          setMessageBox({ visible: false, type: "", title: "", text: "" });
+        }, 5000);
     } finally {
         setIsSubmitting(false);
     }
@@ -836,6 +860,19 @@ const ComplaintForm = ({ currentUser, onCreate, onClose }) => {
           </div>
         </div>
       </div>
+
+      {/* Message Box */}
+      {messageBox.visible && (
+        <div className="fixed top-4 right-4 z-50 max-w-sm w-full p-2">
+          <MessageBox
+            title={messageBox.title}
+            text={messageBox.text}
+            type={messageBox.type}
+            onClose={() => setMessageBox({ visible: false, type: "", title: "", text: "" })}
+            className="pointer-events-auto"
+          />
+        </div>
+      )}
     </div>
   );
 };

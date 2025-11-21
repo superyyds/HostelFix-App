@@ -4,7 +4,7 @@ import PrimaryButton from '../components/PrimaryButton';
 import DashboardCard from '../components/DashboardCard';
 import NotificationBell from '../components/NotificationBell';
 
-const WardenDashboard = ({ onLogout, userId, userDocId, userRole, onViewChange }) => {
+const WardenDashboard = ({ onLogout, userId, userDocId, staffWardenId, userRole, onViewChange, onNotificationClick }) => {
     // 🔑 ROLE VALIDATION - Only wardens can access
     if (userRole !== 'warden') {
         return (
@@ -13,7 +13,7 @@ const WardenDashboard = ({ onLogout, userId, userDocId, userRole, onViewChange }
                 <h2 className="text-2xl font-bold text-red-800 mb-2">Access Denied</h2>
                 <p className="text-red-700 text-center mb-6">
                     This dashboard is only accessible to warden accounts. 
-                    Your role is: <strong>{userRole}</strong>
+                    Your role is: <strong>{userRole.charAt(0).toUpperCase() + userRole.slice(1)}</strong>
                 </p>
                 <PrimaryButton onClick={onLogout} className="bg-red-600 hover:bg-red-700">
                     <LogOut className="w-5 h-5 mr-2" /> Back to Login
@@ -24,7 +24,7 @@ const WardenDashboard = ({ onLogout, userId, userDocId, userRole, onViewChange }
 
     return (
         <div className="bg-gray-100 min-h-screen">
-        <div className="flex items-center bg-white p-4 shadow-xl mb-8 px-10">
+        <div className="flex items-center bg-indigo-50 p-4 shadow-xl mb-8 px-10">
             <div className="flex items-center flex-grow">
                 <img
                     src={"../public/logo.png"}
@@ -32,29 +32,27 @@ const WardenDashboard = ({ onLogout, userId, userDocId, userRole, onViewChange }
                     className="h-14 w-auto"
                 />
                 <h1 className="text-2xl font-extrabold text-indigo-700 ml-3">
-                    HostelFix <span className="text-gray-500">- Warden Portal</span> {/* Differentiate the portal name */}
+                    Warden Portal {/* Differentiate the portal name */}
                 </h1>
             </div>
             
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-6 mr-6">
                 {/* Notification Bell */}
                 <NotificationBell 
                     userId={userId} 
-                    onNotificationClick={(complaintId) => {
-                        onViewChange('complaintList');
-                    }}
+                    onNotificationClick={onNotificationClick}
                 />
                 
                 <button
                     onClick={() => onViewChange('register-user')}
-                    className="p-2 rounded-full bg-green-100 hover:bg-green-200 transition text-green-600 font-semibold"
+                    className="p-2 rounded-full hover:bg-green-100 transition text-green-600 font-semibold"
                     title="Register New User"
                 >
-                    <Users className="w-8 h-8 text-green-600" />
+                    <Users className="w-7 h-7 text-green-600" />
                 </button>
                 <button
                     onClick={() => onViewChange('profile-management')}
-                    className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition"
+                    className="p-1.5 rounded-full hover:bg-gray-200 transition"
                     title="Profile Settings"
                 >
                     <Settings className="w-8 h-8 text-gray-600" />
@@ -76,9 +74,9 @@ const WardenDashboard = ({ onLogout, userId, userDocId, userRole, onViewChange }
                     Welcome, Warden!
                     </h2>
                     <p className="text-lg text-gray-600 mt-3">
-                    Role ID : <span className="font-medium text-indigo-700">{userDocId}</span>
+                    Warden ID : <span className="font-medium text-indigo-700">{staffWardenId || userDocId}</span>
                     <span className="mx-2">|</span>
-                    Role : <span className="font-medium text-indigo-700">{userRole}</span>
+                    Role : <span className="font-medium text-indigo-700">{userRole.charAt(0).toUpperCase() + userRole.slice(1)}</span>
                     </p>
                     <p className="text-lg text-gray-500 mt-3">
                     Use the tools below to manage and resolve facility issues.
@@ -106,6 +104,7 @@ const WardenDashboard = ({ onLogout, userId, userDocId, userRole, onViewChange }
                     title="Generate Reports" 
                     description="Quarterly analytics on resolution times." 
                     color="text-green-500" 
+                    onClick={() => onViewChange('generateReports')}
                 />
             </div>
         </div>

@@ -1,16 +1,20 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
-import { X, ClipboardList, FileText, MessageSquare, Send, UserCog, Loader2, ImageIcon } from "lucide-react";
+import { X, ClipboardList, FileText, MessageSquare, Send, UserCog, Loader2, ImageIcon, CheckCircle, AlertTriangle } from "lucide-react";
 import { doc, updateDoc, getDocs, onSnapshot, query, collection, where } from "firebase/firestore";
 
 import { db } from "../api/firebase";
 import InfoRow from "../components/InfoRow";
 import PrimaryButton from "../components/PrimaryButton";
+import MessageBox from "../components/MessageBox";
 import { 
   notifyStudentComplaintUpdated, 
   notifyStaffComplaintAssigned, 
   notifyStudentComplaintResolved, 
-  notifyNewMessage 
+  notifyNewMessage,
+  notifyWardenComplaintResolved,
+  notifyStaffStatusChanged,
+  notifyStudentStatusChangedByWarden
 } from "../api/notifications";
 
 const STATUS = { PENDING: 'Pending', IN_PROGRESS: 'In Progress', RESOLVED: 'Resolved' };
@@ -40,6 +44,7 @@ const ComplaintDetail = ({ complaint, currentUser, onClose, onGiveFeedback }) =>
   const [isUpdating, setIsUpdating] = useState(false);
   const [staffList, setStaffList] = useState([]);
   const [loadingStaffList, setLoadingStaffList] = useState(false);
+  const [messageBox, setMessageBox] = useState({ visible: false, type: "", title: "", text: "" });
   const chatEndRef = useRef(null);
 
   const isWarden = currentUser.role === "warden";
@@ -67,34 +72,42 @@ const ComplaintDetail = ({ complaint, currentUser, onClose, onGiveFeedback }) =>
       await updateDoc(docRef, { remarks: newRemarks });
 
       // 🔔 NOTIFICATION #7: Notify about new message
-      // Notify student and assigned staff (not warden)
-      if (!isWarden) {
-        const recipientIds = [];
-        
-        // Add student (complaint creator) if sender is not student
-        if (!isStudent && complaint.userId) {
+      // Notify student and assigned staff based on who sent the message
+      const recipientIds = [];
+      
+      if (isWarden) {
+        // Warden sends message: notify student and assigned staff
+        if (complaint.userId) {
           recipientIds.push(complaint.userId);
         }
-        
-        // Add assigned staff if sender is not staff and complaint is assigned
-        if (!isStaff && complaint.assignedTo) {
+        if (complaint.assignedTo) {
           recipientIds.push(complaint.assignedTo);
         }
+      } else if (isStudent) {
+        // Student sends message: notify assigned staff only (not warden)
+        if (complaint.assignedTo) {
+          recipientIds.push(complaint.assignedTo);
+        }
+      } else if (isStaff) {
+        // Staff sends message: notify student only (not warden)
+        if (complaint.userId) {
+          recipientIds.push(complaint.userId);
+        }
+      }
 
-        if (recipientIds.length > 0) {
-          try {
-            await notifyNewMessage(
-              {
-                complaintId: complaint._id,
-                category: complaint.category
-              },
-              recipientIds,
-              currentUser.name || "Someone"
-            );
-            console.log('✅ Message notification sent');
-          } catch (notifError) {
-            console.error('⚠️ Failed to send message notification:', notifError);
-          }
+      if (recipientIds.length > 0) {
+        try {
+          await notifyNewMessage(
+            {
+              complaintId: complaint._id,
+              category: complaint.category
+            },
+            recipientIds,
+            currentUser.name || "Someone"
+          );
+          console.log('✅ Message notification sent to:', recipientIds);
+        } catch (notifError) {
+          console.error('⚠️ Failed to send message notification:', notifError);
         }
       }
     } catch (err) {
@@ -150,17 +163,32 @@ const ComplaintDetail = ({ complaint, currentUser, onClose, onGiveFeedback }) =>
         
         // 🔔 NOTIFICATIONS
         try {
-          // #2: Notify student when warden updates complaint (approves/changes status)
+          // #2: Notify student when warden updates complaint (changes status)
           if (isWarden && statusChanged && complaint.userId) {
-            await notifyStudentComplaintUpdated(
+            await notifyStudentStatusChangedByWarden(
               {
                 complaintId: complaint._id,
                 status: formStatus,
-                category: complaint.category
+                category: complaint.category,
+                changedBy: currentUser.name || 'Warden'
               },
               complaint.userId
             );
-            console.log('✅ Student notified about complaint update');
+            console.log('✅ Student notified about status change by warden');
+            
+            // #2b: Also notify assigned staff when warden changes status (using different notification type)
+            if (complaint.assignedTo) {
+              await notifyStaffStatusChanged(
+                {
+                  complaintId: complaint._id,
+                  status: formStatus,
+                  category: complaint.category,
+                  changedBy: currentUser.name || 'Warden'
+                },
+                complaint.assignedTo
+              );
+              console.log('✅ Assigned staff notified about status change by warden');
+            }
           }
 
           // #3: Notify staff when complaint is assigned to them
@@ -190,23 +218,75 @@ const ComplaintDetail = ({ complaint, currentUser, onClose, onGiveFeedback }) =>
               complaint.userId
             );
             console.log('✅ Student notified about complaint resolution');
+
+            // #9: Notify all wardens when staff resolves complaint
+            try {
+              const wardensQuery = query(collection(db, "users"), where("role", "==", "warden"));
+              const wardensSnapshot = await getDocs(wardensQuery);
+              
+              const wardenNotificationPromises = wardensSnapshot.docs.map(wardenDoc => {
+                const wardenId = wardenDoc.id;
+                return notifyWardenComplaintResolved(
+                  {
+                    complaintId: complaint._id,
+                    category: complaint.category,
+                    resolvedBy: currentUser.name || "Staff",
+                    studentName: complaint.userName
+                  },
+                  wardenId
+                );
+              });
+
+              await Promise.all(wardenNotificationPromises);
+              console.log('✅ Wardens notified about complaint resolution');
+            } catch (wardenNotifError) {
+              console.error('⚠️ Failed to notify wardens about resolution:', wardenNotifError);
+            }
           }
         } catch (notifError) {
           console.error('⚠️ Failed to send notifications:', notifError);
           // Don't fail the update if notification fails
         }
 
+        // Clear form fields
         setRemarks("");
         setProofImage([]);
+        
+        // For wardens: stay on complaint details page and show success message
+        // For staff: redirect to complaint list page
+        if (isWarden) {
+          // Show success message in modal, stay on page
+          setMessageBox({
+            visible: true,
+            type: "success",
+            title: "Complaint Updated!",
+            text: "Complaint updated successfully!"
+          });
+          setTimeout(() => {
+            setMessageBox({ visible: false, type: "", title: "", text: "" });
+          }, 3000);
+        } else {
+          // Close modal and show success message on complaint list page
+          onClose({ success: true, message: "Complaint updated successfully!" });
+        }
       } catch (err) {
         console.error("Error updating complaint:", err);
+        setMessageBox({
+          visible: true,
+          type: "error",
+          title: "Update Failed",
+          text: "Failed to update complaint. Please try again."
+        });
+        // Auto-hide error notification after 5 seconds
+        setTimeout(() => {
+          setMessageBox({ visible: false, type: "", title: "", text: "" });
+        }, 5000);
       } finally {
         setIsUpdating(false);
       }
     } else {
       setIsUpdating(false);
     }
-    onClose();
   };
 
   const handleProofImageChange = (e) => {
@@ -679,7 +759,20 @@ const ComplaintDetail = ({ complaint, currentUser, onClose, onGiveFeedback }) =>
             </div>
           )} 
         </div>
-      </div>    
+      </div>
+
+      {/* Message Box */}
+      {messageBox.visible && (
+        <div className="fixed top-4 right-4 z-50 max-w-sm w-full p-2">
+          <MessageBox
+            title={messageBox.title}
+            text={messageBox.text}
+            type={messageBox.type}
+            onClose={() => setMessageBox({ visible: false, type: "", title: "", text: "" })}
+            className="pointer-events-auto"
+          />
+        </div>
+      )}
     </div>
   );
 };
