@@ -1,18 +1,20 @@
 import React from 'react';
-import { LogOut, Settings, AlertTriangle, MessageSquare, Users, Shield, Home, AlertCircle } from "lucide-react";
+import { LogOut, Settings, MessageSquare, Shield, Home, AlertCircle } from "lucide-react";
+
+// --- Import UI Components ---
 import PrimaryButton from '../components/PrimaryButton';
 import DashboardCard from '../components/DashboardCard';
 import NotificationBell from '../components/NotificationBell';
 
-const WardenDashboard = ({ onLogout, userId, userDocId, staffWardenId, userRole, onViewChange, onNotificationClick }) => {
-    // 🔑 ROLE VALIDATION - Only wardens can access
-    if (userRole !== 'warden') {
+const StaffDashboard = ({ onLogout, name, userRole, onViewChange, userId, staffWardenId, onNotificationClick }) => {
+    // 🔑 ROLE VALIDATION - Only staff can access
+    if (userRole !== 'staff') {
         return (
             <div className="min-h-screen flex flex-col items-center justify-center bg-red-50 p-6">
                 <AlertCircle className="w-16 h-16 text-red-600 mb-4" />
                 <h2 className="text-2xl font-bold text-red-800 mb-2">Access Denied</h2>
                 <p className="text-red-700 text-center mb-6">
-                    This dashboard is only accessible to warden accounts. 
+                    This dashboard is only accessible to staff accounts. 
                     Your role is: <strong>{userRole.charAt(0).toUpperCase() + userRole.slice(1)}</strong>
                 </p>
                 <PrimaryButton onClick={onLogout} className="bg-red-600 hover:bg-red-700">
@@ -31,8 +33,8 @@ const WardenDashboard = ({ onLogout, userId, userDocId, staffWardenId, userRole,
                     alt={"HostelFix Logo"}
                     className="h-14 w-auto"
                 />
-                <h1 className="text-2xl font-extrabold text-indigo-700 ml-3">
-                    Warden Portal {/* Differentiate the portal name */}
+                <h1 className="text-2xl font-extrabold ml-3">
+                    Staff Portal {/* Differentiate the portal name */}
                 </h1>
             </div>
             
@@ -43,13 +45,6 @@ const WardenDashboard = ({ onLogout, userId, userDocId, staffWardenId, userRole,
                     onNotificationClick={onNotificationClick}
                 />
                 
-                <button
-                    onClick={() => onViewChange('register-user')}
-                    className="p-2 rounded-full hover:bg-green-100 transition text-green-600 font-semibold"
-                    title="Register New User"
-                >
-                    <Users className="w-7 h-7 text-green-600" />
-                </button>
                 <button
                     onClick={() => onViewChange('profile-management')}
                     className="p-1.5 rounded-full hover:bg-gray-200 transition"
@@ -62,7 +57,7 @@ const WardenDashboard = ({ onLogout, userId, userDocId, staffWardenId, userRole,
                 </PrimaryButton>
             </div>
         </div>
-
+        
         <div className="max-w-[120rem] mx-auto px-4 sm:px-10 md:px-20">
             <div className="bg-white rounded-2xl shadow-xl mb-8 flex items-stretch overflow-hidden">
                 <div className="flex-shrink-0 w-[10rem] bg-gradient-to-b from-indigo-600 to-blue-500 flex items-center justify-center">
@@ -71,45 +66,37 @@ const WardenDashboard = ({ onLogout, userId, userDocId, staffWardenId, userRole,
                 
                 <div className="flex-1 px-12 py-6">
                     <h2 className="text-2xl font-bold text-gray-800">
-                    Welcome, Warden!
+                    Welcome, {name}!
                     </h2>
                     <p className="text-lg text-gray-600 mt-3">
-                    Warden ID : <span className="font-medium text-indigo-700">{staffWardenId || userDocId}</span>
+                    Staff ID : <span className="font-medium text-indigo-700">{staffWardenId}</span>
                     <span className="mx-2">|</span>
                     Role : <span className="font-medium text-indigo-700">{userRole.charAt(0).toUpperCase() + userRole.slice(1)}</span>
                     </p>
                     <p className="text-lg text-gray-500 mt-3">
-                    Use the tools below to manage and resolve facility issues.
+                    View and address your assigned complaints.
                     </p>
                 </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <DashboardCard 
-                    icon={AlertTriangle} 
-                    title="All Complaints" 
-                    description="Review and assign unhandled issues." 
-                    color="text-red-500"
+                    icon={MessageSquare} 
+                    title="Assigned Complaints" 
+                    description="View your complaint status and history." 
+                    color="text-blue-500"
                     onClick={() => onViewChange('complaintList')}
                 />
                 <DashboardCard 
-                    icon={MessageSquare} 
-                    title="Feedback Review" 
-                    description="View student feedback and satisfaction ratings." 
-                    color="text-indigo-500" 
-                    onClick={() => onViewChange('feedbackViewer')}
-                />
-                <DashboardCard 
                     icon={Shield} 
-                    title="Generate Reports" 
-                    description="Quarterly analytics on resolution times." 
+                    title="View Announcements" 
+                    description="See warden updates and maintenance schedules." 
                     color="text-green-500" 
-                    onClick={() => onViewChange('generateReports')}
                 />
             </div>
         </div>
     </div>
     );
 }
-   
-export default WardenDashboard;
+
+export default StaffDashboard;

@@ -1,12 +1,9 @@
-// src/pages/RegisterUserPage.jsx
-
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { User, Shield, Mail, Compass, Plus, Loader2, ArrowLeft } from "lucide-react";
 
 // --- Import UI Components ---
 import PrimaryButton from '../components/PrimaryButton';
 import InputField from '../components/InputField';
-import MessageBox from '../components/MessageBox';
 import RoleToggle from '../components/RoleToggle';
 
 import {
@@ -16,151 +13,283 @@ import {
     signInWithEmailAndPassword,
     saveUserToFirestore,
     checkUserExists,
+    db,
 } from '../api/firebase';
 
 import { wardenSessionCache } from '../api/cache';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 
 const RegisterUserPage = ({ onBackToDashboard, onRegistrationStart, onRegistrationComplete }) => {
+    
+    // Define unique temporary passwords for each role
+    const getPassword = (currentRole) => {
+        switch (currentRole) {
+            case 'student':
+                return "HostelPass!Std1";
+            case 'staff':
+                return "AdminPass!Stf2";
+            case 'warden':
+                return "AdminPass!Wdn3";
+            default:
+                return "DefaultPass!X0";
+        }
+    };
+    
     const [name, setName] = useState("");
-    const [hostelId, setHostelId] = useState("");
+    const [uniqueId, setUniqueId] = useState("");
     const [email, setEmail] = useState("");
     const [contactNo, setContactNo] = useState("");
     const [role, setRole] = useState("student");
-    const [tempPassword, setTempPassword] = useState("TempPass!1"); 
-    const [isMessageVisible, setIsMessageVisible] = useState(false);
-    const [message, setMessage] = useState({ title: "", text: "", type: "" });
     const [isLoading, setIsLoading] = useState(false);
 
+    // Clear fields when role changes
+    useEffect(() => {
+        setName("");
+        setUniqueId("");
+        setEmail("");
+        setContactNo("");
+    }, [role]); 
+    
+    const getIdLabel = (currentRole) => 
+        currentRole === 'student' ? "Hostel ID (e.g., A-101)" : "Staff/Warden ID (e.g., S-100)";
+    
+    const idLabel = getIdLabel(role);
+
+    // Define regex patterns for validation
+    const studentRegex = /^\S+@student\.usm\.my$/i;
+    const usmStaffRegex = /^\S+@usm\.my$/i;
+
+    // 🔍 COMPREHENSIVE DUPLICATE CHECKING FUNCTION
+    const checkForDuplicates = async (normalizedEmail, userName, userUniqueId, userRole) => {
+        const errors = [];
+        
+        try {
+            console.log("🔍 DEBUG: Starting duplicate check for email:", normalizedEmail);
+            
+            // 1. FIRST PRIORITY: Check email in Firestore
+            const emailQuery = query(
+                collection(db, 'users'), 
+                where('email', '==', normalizedEmail.toLowerCase())
+            );
+            const emailSnapshot = await getDocs(emailQuery);
+            console.log("🔍 DEBUG: Firestore email check result:", !emailSnapshot.empty);
+            
+            if (!emailSnapshot.empty) {
+                errors.push(`Email address "${normalizedEmail}" has been registered before.`);
+                console.log("❌ DEBUG: Email duplicate found in Firestore");
+                return errors;
+            }
+
+            // 2. Check email in Firebase Auth (via checkUserExists)
+            console.log("🔍 DEBUG: Checking Firebase Auth for email...");
+            const emailInAuth = await checkUserExists('email', normalizedEmail);
+            console.log("🔍 DEBUG: Firebase Auth email check result:", emailInAuth);
+            
+            if (emailInAuth) {
+                errors.push(`Email address "${normalizedEmail}" is already registered in the system.`);
+                console.log("❌ DEBUG: Email duplicate found in Firebase Auth");
+                return errors;
+            }
+
+            // 3. Check for duplicate name (case-insensitive)
+            if (userName && userName.trim()) {
+                console.log("🔍 DEBUG: Checking for duplicate name:", userName);
+                const nameQuery = query(
+                    collection(db, 'users'),
+                    where('name', '>=', userName.trim().toLowerCase()),
+                    where('name', '<=', userName.trim().toLowerCase() + '\uf8ff')
+                );
+                const nameSnapshot = await getDocs(nameQuery);
+                
+                if (!nameSnapshot.empty) {
+                    const exactMatch = nameSnapshot.docs.find(doc => 
+                        doc.data().name.toLowerCase() === userName.trim().toLowerCase()
+                    );
+                    if (exactMatch) {
+                        errors.push(`Name "${userName}" is already registered in the system.`);
+                        console.log("❌ DEBUG: Name duplicate found");
+                    }
+                }
+            }
+
+            // 4. Check for duplicate unique ID
+            if (userUniqueId && userUniqueId.trim()) {
+                const idField = userRole === 'student' ? 'hostelId' : 'staffWardenId';
+                const idLabel = userRole === 'student' ? 'Hostel ID' : 'Staff/Warden ID';
+                
+                console.log(`🔍 DEBUG: Checking for duplicate ${idLabel}:`, userUniqueId);
+                const idQuery = query(
+                    collection(db, 'users'),
+                    where(idField, '==', userUniqueId.toUpperCase().trim())
+                );
+                const idSnapshot = await getDocs(idQuery);
+                
+                if (!idSnapshot.empty) {
+                    errors.push(`${idLabel} "${userUniqueId}" is already registered in the system.`);
+                    console.log(`❌ DEBUG: ${idLabel} duplicate found`);
+                }
+            }
+
+            // 5. Check for duplicate contact number
+            if (contactNo && contactNo.trim() && contactNo.trim() !== 'N/A') {
+                console.log("🔍 DEBUG: Checking for duplicate contact number:", contactNo);
+                const contactQuery = query(
+                    collection(db, 'users'),
+                    where('contactNo', '==', contactNo.trim())
+                );
+                const contactSnapshot = await getDocs(contactQuery);
+                
+                if (!contactSnapshot.empty) {
+                    errors.push(`Contact number "${contactNo}" is already registered in the system.`);
+                    console.log("❌ DEBUG: Contact number duplicate found");
+                }
+            }
+
+            console.log("✅ DEBUG: No duplicates found");
+            return errors;
+
+        } catch (error) {
+            console.error("❌ DEBUG: Error in duplicate check:", error);
+            throw new Error("Failed to verify user information. Please try again.");
+        }
+    };
+
     const handleRegisterUser = async (e) => {
-        e.preventDefault();
+        e.preventDefault(); 
+        
+        console.log("🔍 DEBUG: Form submitted with role:", role);
         
         const wardenUser = auth.currentUser;
         if (!wardenUser) { 
-            setMessage({ title: "Error", text: "Warden session expired. Please log in again.", type: "error" });
-            setIsMessageVisible(true);
+            console.log("❌ DEBUG: No warden user found");
+            // Let App.js handle this error via onRegistrationComplete
+            onRegistrationComplete('error');
             return;
         }
         
-        // CRITICAL CHECK: Ensure we have cached warden credentials for manual re-login
         if (!wardenSessionCache.email || !wardenSessionCache.password) {
-             setMessage({ title: "Error", text: "Warden credentials not cached. Please log out and back in.", type: "error" });
-             setIsMessageVisible(true);
-             return;
+            console.log("❌ DEBUG: No cached warden credentials");
+            onRegistrationComplete('error');
+            return;
         }
-
-        if (!name || !hostelId || !email) {
-            setMessage({ title: "Error", text: "Please fill in Name, Hostel ID, and Email.", type: "error" });
-            setIsMessageVisible(true);
+        
+        // Check for required fields
+        if (!name || !uniqueId || !email) {
+            console.log("❌ DEBUG: Missing required fields");
+            onRegistrationComplete('error');
             return;
         }
 
-        // 1. Start registration process - inform App Component
+        // Email domain validation
+        const normalizedEmail = email.toLowerCase();
+        let validationError = null;
+
+        if (role === 'student') {
+            if (!studentRegex.test(normalizedEmail)) {
+                validationError = "Student accounts must use the 'xxx@student.usm.my' format.";
+            }
+        } else if (role === 'staff' || role === 'warden') {
+            const roleName = role.charAt(0).toUpperCase() + role.slice(1);
+            if (studentRegex.test(normalizedEmail)) {
+                validationError = `${roleName} registration cannot use a student email address.`;
+            } else if (!usmStaffRegex.test(normalizedEmail)) {
+                validationError = `${roleName} accounts must use the official 'xxx@usm.my' format.`;
+            }
+        }
+        
+        if (validationError) {
+            console.log("❌ DEBUG: Validation error found:", validationError);
+            onRegistrationComplete('error');
+            return;
+        }
+
+        const tempPassword = getPassword(role); 
+
+        // Start registration process
+        console.log("🔄 DEBUG: Starting registration process");
         setIsLoading(true);
-        onRegistrationStart(); // This triggers the global loading screen
+        onRegistrationStart();
 
         try {
-            // Check if user already exists in Firestore
-            const hostelIdExists = await checkUserExists('hostelId', hostelId);
-            const emailExists = await checkUserExists('email', email.toLowerCase());
-
-            if (hostelIdExists) {
-                throw new Error(`Hostel ID ${hostelId} is already registered.`);
-            }
-            if (emailExists) {
-                throw new Error(`Email ${email} is already in use by another account.`);
-            }
-
-            // 2. Create user in Firebase Auth (Student signs in, hijacking the session)
-            const newUserCredential = await createUserWithEmailAndPassword(auth, email, tempPassword);
-            const newUser = newUserCredential.user;
+            // 🔍 COMPREHENSIVE DUPLICATE CHECKING
+            console.log("🔍 DEBUG: Checking for duplicates...");
+            const duplicateErrors = await checkForDuplicates(normalizedEmail, name, uniqueId, role);
+            console.log("🔍 DEBUG: Duplicate check result:", duplicateErrors);
             
-            // 3. Prepare user data for Firestore
+            if (duplicateErrors.length > 0) {
+                console.log("❌ DEBUG: Duplicates found - stopping registration");
+                setIsLoading(false);
+                // Pass the duplicate errors to App.js to show the message
+                onRegistrationComplete('duplicate', { errors: duplicateErrors });
+                return;
+            }
+
+            console.log("✅ DEBUG: No duplicates found, proceeding with Firebase registration...");
+
+            // Create user in Firebase Auth
+            const newUserCredential = await createUserWithEmailAndPassword(auth, normalizedEmail, tempPassword);
+            const newUser = newUserCredential.user;
+            console.log("✅ DEBUG: Firebase Auth user created:", newUser.uid);
+            
+            // Prepare user data for Firestore
             const newUserData = {
                 uid: newUser.uid,
-                email: email.toLowerCase(),
-                name: name,
+                email: normalizedEmail,
+                name: name.trim(),
                 role: role,
-                hostelId: hostelId,
-                contactNo: contactNo || 'N/A',
+                [role === 'student' ? 'hostelId' : 'staffWardenId']: uniqueId.toUpperCase().trim(), 
+                contactNo: contactNo.trim() || 'N/A',
                 dateCreated: new Date().toISOString(),
                 mustChangePassword: true, 
             };
 
-            // 4. Save to Firestore
+            // Save to Firestore
             await saveUserToFirestore(newUserData); 
+            console.log("✅ DEBUG: User data saved to Firestore");
 
-            // 5. Kill Student Session
+            // Kill New User Session and Restore Warden's Session
             await signOut(auth);
-            
-            // 6. Manually and instantly restore Warden's session
+            console.log("✅ DEBUG: New user session signed out");
             await signInWithEmailAndPassword(auth, wardenSessionCache.email, wardenSessionCache.password);
+            console.log("✅ DEBUG: Warden session restored");
             
-            // --- SUCCESS: Clear form and inform App Component ---
+            // Success: Clear form and inform App Component
             const registrationData = { 
-                name, 
-                hostelId, 
+                name: name.trim(), 
+                uniqueId: uniqueId.toUpperCase().trim(), 
                 tempPassword,
-                email,
+                email: normalizedEmail,
                 role
             };
             
-            // Clear form to allow new registration
+            // Clear form fields
             setName("");
-            setHostelId("");
+            setUniqueId("");
             setEmail("");
             setContactNo("");
-            setRole("student");
-            setTempPassword("TempPass!1");
-            
+
             // Inform App Component the sequence is complete and successful
             onRegistrationComplete('success', registrationData);
 
         } catch (error) {
-            console.error("Error registering user:", error);
-            
-            // Inform App Component the sequence failed
-            onRegistrationComplete('error'); 
-
-            let errorMessage = error.message;
-            if (error.code === 'auth/email-already-in-use') {
-                errorMessage = "This email is already registered in Firebase Auth.";
-            } else if (error.code === 'auth/invalid-email') {
-                errorMessage = "Invalid email address.";
-            } else if (error.code === 'auth/weak-password') {
-                errorMessage = "Temporary password is too weak. Please use a stronger password.";
-            }
-
-            setMessage({
-                title: "Registration Failed",
-                text: errorMessage,
-                type: "error"
-            });
-            setIsMessageVisible(true);
-        } finally {
-            // Always stop local loading (App component handles global loading)
-            setIsLoading(false);
+             console.error("❌ DEBUG: Error in registration:", error);
+             onRegistrationComplete('error'); 
+             setIsLoading(false);
         }
     };
 
-    const closeMessage = () => setIsMessageVisible(false);
-
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-5 relative">
-            {/* Local error messages only - success handled at App level */}
-            {isMessageVisible && (
-                <MessageBox title={message.title} text={message.text} type={message.type} onClose={closeMessage} />
-            )}
-
+        <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-5">
             <div className="w-full max-w-lg bg-white p-8 md:p-10 rounded-3xl shadow-2xl">
                 <div className="flex items-center justify-center mb-2">
                     <Plus className="w-8 h-8 text-indigo-600 mr-3" />
                     <h1 className="text-3xl font-extrabold text-gray-800 tracking-tight">Register User</h1>
                 </div>
                 <div className="text-center text-gray-500 mb-6 text-lg font-light">
-                    (Warden function to pre-populate student accounts)
+                    (Warden function to pre-populate {role.charAt(0).toUpperCase() + role.slice(1)} accounts)
                 </div>
 
-                <form onSubmit={handleRegisterUser}>
+                <form onSubmit={handleRegisterUser}> 
                     <RoleToggle role={role} setRole={setRole} disabled={isLoading} />
 
                     <InputField 
@@ -170,14 +299,16 @@ const RegisterUserPage = ({ onBackToDashboard, onRegistrationStart, onRegistrati
                         value={name} 
                         onChange={(e) => setName(e.target.value)} 
                         disabled={isLoading}
+                        required
                     />
                     <InputField 
                         icon={Shield} 
                         type="text" 
-                        placeholder="Hostel ID (e.g., A-101)" 
-                        value={hostelId} 
-                        onChange={(e) => setHostelId(e.target.value.toUpperCase())} 
+                        placeholder={idLabel} 
+                        value={uniqueId} 
+                        onChange={(e) => setUniqueId(e.target.value.toUpperCase())}
                         disabled={isLoading}
+                        required
                     />
                     <InputField 
                         icon={Mail} 
@@ -186,6 +317,7 @@ const RegisterUserPage = ({ onBackToDashboard, onRegistrationStart, onRegistrati
                         value={email} 
                         onChange={(e) => setEmail(e.target.value)} 
                         disabled={isLoading}
+                        required
                     />
                     <InputField 
                         icon={Compass} 
@@ -198,7 +330,7 @@ const RegisterUserPage = ({ onBackToDashboard, onRegistrationStart, onRegistrati
                     />
 
                     <div className="bg-yellow-50 border border-yellow-300 p-3 rounded-lg text-sm text-yellow-800 mb-6">
-                        <p className="font-semibold">Temporary Password: {tempPassword}</p>
+                        <p className="font-semibold">Temporary Password: {getPassword(role)}</p>
                         <p>User will be <strong>forced</strong> to change this upon first login.</p>
                     </div>
 
@@ -209,7 +341,7 @@ const RegisterUserPage = ({ onBackToDashboard, onRegistrationStart, onRegistrati
                                 Creating Account...
                             </div>
                         ) : (
-                            `Create ${role} Account`
+                            `Create ${role.charAt(0).toUpperCase() + role.slice(1)} Account`
                         )}
                     </PrimaryButton>
                 </form>
@@ -229,7 +361,6 @@ const RegisterUserPage = ({ onBackToDashboard, onRegistrationStart, onRegistrati
 };
 
 export default RegisterUserPage;
-
 // // src/pages/RegisterUserPage.jsx
 
 // import React, { useState } from "react";

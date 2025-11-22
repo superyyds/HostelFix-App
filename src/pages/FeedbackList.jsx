@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Star } from "lucide-react";
+import { Star, StepBack } from "lucide-react";
 import { motion } from "framer-motion";
 
 import PrimaryButton from "../components/PrimaryButton";
@@ -9,13 +9,30 @@ const FeedbackList = ({ feedbackList, onBack, onDeleteFeedback, onEditFeedback }
   const [filterRating, setFilterRating] = useState("all");
   const clearFilter = () => setFilterRating("all");
 
+  // Helper function to format date
+  const formatDate = (dateString) => {
+    if (!dateString) return "N/A";
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (error) {
+      return dateString; // Return original if parsing fails
+    }
+  };
+
   const filtered =
     filterRating === "all"
       ? feedbackList
       : feedbackList.filter((f) => Math.floor(f.averageRating) >= parseInt(filterRating));
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-100 to-indigo-200 py-10">
+    <div className="min-h-screen bg-indigo-50 py-10">
       <div className="max-w-7xl mx-auto px-6">
         {/* --- Header Section --- */}
         <div className="flex items-center justify-between mb-8">
@@ -27,18 +44,9 @@ const FeedbackList = ({ feedbackList, onBack, onDeleteFeedback, onEditFeedback }
               View, edit, or delete your submitted feedback.
             </p>
           </div>
-          <button
-            onClick={onBack}
-            className={`
-              w-48 py-3 px-4 font-semibold text-lg tracking-wider
-              bg-indigo-600 text-white rounded-xl shadow-xl
-              transition duration-300 ease-in-out transform
-              hover:bg-indigo-700 hover:shadow-2xl active:scale-[0.98]
-              disabled:bg-gray-400 disabled:shadow-none
-            `}
-          >
-            Back
-          </button>
+          <PrimaryButton className="!w-fit !mr-4" onClick={onBack}>
+            <div className="!flex !items-center !justify-center"><StepBack className="w-5 h-5 mr-2" />Back</div>
+          </PrimaryButton>
         </div>
 
         <motion.div
@@ -73,7 +81,7 @@ const FeedbackList = ({ feedbackList, onBack, onDeleteFeedback, onEditFeedback }
 
           {/* Feedback List */}
           {filtered.length === 0 ? (
-            <p className="text-gray-500 text-center mt-10 text-lg font-medium">
+            <p className="text-gray-500 text-center mt-10 text-lg font-medium bo">
               No feedback available.
             </p>
           ) : (
@@ -83,7 +91,7 @@ const FeedbackList = ({ feedbackList, onBack, onDeleteFeedback, onEditFeedback }
                   key={fb.id}
                   whileHover={{ scale: 1.02 }}
                   transition={{ duration: 0.2 }}
-                  className="rounded-2xl border border-gray-200 bg-white p-6 shadow-md hover:shadow-lg transition-all duration-200"
+                  className="rounded-2xl border border-gray-200 bg-white p-6 shadow-md hover:shadow-lg transition-all duration-200 hover:border-indigo-300"
                 >
                   {/* Rating & Date */}
                   <div className="flex justify-between items-center mb-3">
@@ -99,7 +107,7 @@ const FeedbackList = ({ feedbackList, onBack, onDeleteFeedback, onEditFeedback }
                         />
                       ))}
                     </div>
-                    <span className="text-gray-400 text-sm">{fb.createdAt}</span>
+                    <span className="text-gray-400 text-sm">{formatDate(fb.createdAt)}</span>
                   </div>
 
                   {/* Feedback Text */}

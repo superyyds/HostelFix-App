@@ -119,7 +119,7 @@ const ProfileManagementPage = ({ appState, onBackToDashboard, onPasswordChange, 
                                 <PrimaryButton
                                     type="button"
                                     onClick={handleSave}
-                                    className="w-auto px-6 py-2 text-sm bg-green-500 hover:bg-green-600"
+                                    className="w-auto bg-green-500 hover:bg-green-600"
                                     disabled={isLoading}
                                 >
                                     {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save Changes'}
@@ -127,7 +127,7 @@ const ProfileManagementPage = ({ appState, onBackToDashboard, onPasswordChange, 
                                 <button 
                                     type="button"
                                     onClick={() => setIsEditing(false)} 
-                                    className="w-auto px-6 py-2 text-sm font-semibold text-gray-700 bg-gray-200 rounded-xl hover:bg-gray-300 transition duration-300 disabled:bg-gray-400"
+                                    className="w-auto px-4 py-3 font-semibold text-lg tracking-wider text-gray-700 bg-gray-200 rounded-xl hover:bg-gray-300 transition duration-300 disabled:bg-gray-400"
                                     disabled={isLoading}
                                 >
                                     Cancel
@@ -140,7 +140,7 @@ const ProfileManagementPage = ({ appState, onBackToDashboard, onPasswordChange, 
                                     console.log('Edit button clicked'); // Debug log
                                     setIsEditing(true);
                                 }}
-                                className="inline-flex items-center justify-center min-w-[160px] px-6 py-5 text-base bg-indigo-500 hover:bg-indigo-600"
+                                className="!px-4 !w-fit"
                             >
                                 Edit Profile
                             </PrimaryButton>
