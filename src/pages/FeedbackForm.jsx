@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Star,
   Send,
@@ -8,11 +8,21 @@ import {
   CheckCircle,
   AlertTriangle,
   User,
+  Info, 
 } from "lucide-react";
 import PrimaryButton from "../components/PrimaryButton";
 import { collection, onSnapshot } from "firebase/firestore";
-
 import { db } from "../api/firebase";
+import HelpTooltip from "../components/HelpTooltip"
+
+const InfoRow = ({ label, value }) => (
+  <p className="flex justify-between bg-gray-50 px-4 py-2 rounded-lg border border-gray-100 hover:border-indigo-100 transition">
+    <span className="font-black text-gray-600">{label}:</span>
+    <span className="text-gray-800">{value || "—"}</span>
+  </p>
+);
+
+const STATUS = { PENDING: 'Pending', IN_PROGRESS: 'In Progress', RESOLVED: 'Resolved' };
 
 const FeedbackForm = ({
   onBack,
@@ -30,13 +40,15 @@ const FeedbackForm = ({
     editingFeedback?.ratings || {
       responseTime: 0,
       serviceQuality: 0,
-      communication: 0,
+      communication: 0, 
+      resolutionSatisfaction: 0, 
     }
   );
   const [image, setImage] = useState(editingFeedback?.image || null);
   const fileInputRef = useRef(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [messageBox, setMessageBox] = useState({ visible: false, type: "", text: "" });
+  const [showConfirm, setShowConfirm] = useState(false);
 
   // --- Step 2 (Complaint ID) ---
   const [selectedComplaintId, setSelectedComplaintId] = useState("");
@@ -67,13 +79,14 @@ const FeedbackForm = ({
         responseTime: 0,
         serviceQuality: 0,
         communication: 0,
+        resolutionSatisfaction: 0, 
       });
       setImage(editingFeedback.image || null);
       setSelectedComplaintId(editingFeedback.complaintId || "");
     } else {
       // Clear form when no editing feedback
       setFeedbackText("");
-      setRatings({ responseTime: 0, serviceQuality: 0, communication: 0 });
+      setRatings({ responseTime: 0, serviceQuality: 0, communication: 0, resolutionSatisfaction: 0 });
       setImage(null);
       setSelectedComplaintId("");
       setSelectedComplaint(null);
@@ -113,10 +126,28 @@ const FeedbackForm = ({
       setStep(draft.step || 1);
       setSelectedComplaintId(draft.selectedComplaintId || "");
       setFeedbackText(draft.feedbackText || "");
-      setRatings(draft.ratings || { responseTime: 0, serviceQuality: 0, communication: 0 });
+      setRatings(draft.ratings || { responseTime: 0, serviceQuality: 0, communication: 0, resolutionSatisfaction: 0 });
       setImage(draft.image || null);
     }
   }, []);
+
+  useEffect(() => {
+    if (selectedComplaintId && !selectedComplaint) {
+      const found = complaints.find(c => c._id === selectedComplaintId);
+      if (found) setSelectedComplaint(found);
+    }
+  }, [complaints, selectedComplaintId]);
+
+  useEffect(() => {
+    if (messageBox.visible) {
+      const timer = setTimeout(() => setMessageBox({ ...messageBox, visible: false }), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [messageBox]);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [step]);
 
   const ratingLabels = {
     1: "Poor",
@@ -194,6 +225,11 @@ const FeedbackForm = ({
     reader.readAsDataURL(file);
   };
 
+  const handleCancelEdit = () => {
+    onCancelEdit();
+    localStorage.removeItem("feedbackDraft");
+  };
+
   // --- Submit Handler ---
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -254,7 +290,7 @@ const FeedbackForm = ({
 
       setStep(1);
       setFeedbackText("");
-      setRatings({ responseTime: 0, serviceQuality: 0, communication: 0 });
+      setRatings({ responseTime: 0, serviceQuality: 0, communication: 0, resolutionSatisfaction: 0 });
       setImage(null);
       setSelectedComplaintId("");
       setSelectedComplaint(null);
@@ -293,6 +329,8 @@ const FeedbackForm = ({
 
         {/* --- Steps --- */}
         <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
+          
+          {/* Steps Header */}
           <div className="p-10 border-b bg-white">
             <div className="flex justify-between items-center">
               {["User Info", "Select Complaint", "Feedback"].map((label, idx) => {
@@ -301,8 +339,19 @@ const FeedbackForm = ({
                 const completed = step > id;
                 return (
                   <div key={id} className="flex-1 flex flex-col items-center relative">
-                    <div
-                      className={`w-12 h-12 flex items-center justify-center rounded-full border-2
+                    {/* Connector line */}
+                    {id < 3 && (
+                      <div
+                        className={`absolute top-6 left-1/2 w-full h-[3px] z-0 rounded-full transition-all duration-500 ${
+                          completed ? "bg-gradient-to-r from-indigo-500 to-pink-500" : "bg-gray-200"
+                        }`}
+                      ></div>
+                    )}
+                    
+                    {/* Step circle */}
+                    <motion.div
+                      whileHover={{ scale: 1.1 }}
+                      className={`z-10 w-12 h-12 flex items-center justify-center rounded-full border-2
                         ${completed
                           ? "bg-indigo-600 border-indigo-600 text-white"
                           : active
@@ -311,7 +360,7 @@ const FeedbackForm = ({
                       `}
                     >
                       {completed ? <CheckCircle className="w-6 h-6" /> : id}
-                    </div>
+                    </motion.div>
                     <p
                       className={`mt-2 text-sm font-medium ${
                         active ? "text-indigo-700" : "text-gray-500"
@@ -340,46 +389,48 @@ const FeedbackForm = ({
               {step === 1 && (
                 <div>
                   <h2 className="text-2xl font-bold text-indigo-700 mb-6 flex items-center gap-2">
-                    <User className="w-6 h-6" /> Your Information
+                    <User className="w-6 h-6 text-indigo-600" /> Your Information
                   </h2>
 
                   <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-6 shadow-inner space-y-4 text-gray-700">
-                    <div className="grid md:grid-cols-2 gap-4">
-                      <p>
-                        <strong>Full Name:</strong>{" "}
-                        {currentUser?.displayName || currentUser?.name || "—"}
-                      </p>
-                      <p>
-                        <strong>Email:</strong> {currentUser?.email || "—"}
-                      </p>
-                      <p>
-                        <strong>Contact Number:</strong>{" "}
-                        {currentUser?.contactNo && currentUser?.contactNo !== ""
+                    <div className="grid md:grid-cols-1 gap-4">
+                      <InfoRow
+                        label="Full Name"
+                        value={currentUser?.displayName || currentUser?.name || "—"}
+                      />
+                      <InfoRow
+                        label="Email" 
+                        value={currentUser?.email || "—"}
+                      />
+                      <InfoRow
+                        label="Contact Number"
+                        value={currentUser?.contactNo && currentUser?.contactNo !== ""
                           ? currentUser.contactNo
                           : "N/A"}
-                      </p>
-                      <p>
-                        <strong>Role:</strong>{" "}
-                        {currentUser?.role
+                      />
+                      <InfoRow
+                        label="Role"
+                        value={currentUser?.role
                           ? currentUser.role.charAt(0).toUpperCase() + currentUser.role.slice(1)
                           : "—"}
-                      </p>
-                      <p>
-                        <strong>{currentUser?.role === "student" ? "Hostel ID" : "User ID (Auth UID)"}:</strong>{" "}
-                        {currentUser?.role === "student"
-                          ? currentUser?.hostelId || "—"
-                          : currentUser?.uid || "—"}
-                      </p>
+                      />
+                      <InfoRow
+                        label="Hostel ID"
+                        value={currentUser?.hostelId || "—"}
+                      />
                       {currentUser?.lastUpdated && (
-                        <p>
-                          <strong>Last Updated:</strong>{" "}
-                          {new Date(currentUser.lastUpdated).toLocaleString()}
-                        </p>
+                        <InfoRow
+                          label="Last Updated"
+                          value={currentUser.lastUpdated?.toDate
+                                  ? scurrentUser.lastUpdated.toDate().toLocaleString()
+                                  : new Date(currentUser.lastUpdated).toLocaleString()
+                                }
+                        />
                       )}
                     </div>
 
                     <div className="mt-4 p-3 bg-indigo-100 rounded-lg text-sm text-indigo-700">
-                      Please ensure your profile details are accurate. You can update them in your
+                      ⚙️ Please ensure your profile details are accurate. You can update them in your
                       <strong> Profile Management </strong> section before submitting feedback.
                     </div>
                   </div>
@@ -387,33 +438,47 @@ const FeedbackForm = ({
               )}
 
               {step === 2 && (
-                <div>
+                <div className="space-y-3">
                   <h2 className="text-2xl font-bold text-indigo-700 mb-6">
                     Select a Complaint to Provide Feedback
                   </h2>
 
                   {/* Complaint Dropdown */}
                   {loading ? (
-                    <p>Loading complaints...</p>
+                    <p className="text-gray-500 animate-pulse">Loading complaints...</p>
                   ) : complaints.length === 0 ? (
-                    <p>No complaints found.</p>
+                    <p className="text-gray-500">No complaints found.</p>
                   ) : (
-                    <div className="space-y-3">
+                    <div className="grid md:grid-cols-1 gap-4">
                       <label className="font-semibold">Select a Complaint:</label>
                       {complaints.map(c => (
-                        <button
+                        <motion.button
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
                           key={c._id}
                           onClick={() => setSelectedComplaint(c)}
-                          className={`w-full text-left p-3 border rounded-lg hover:bg-indigo-50 transition ${
-                            selectedComplaint?._id === c._id ? "border-indigo-600 bg-indigo-100" : "border-gray-200"
+                          className={`w-full text-left p-5 border-2 rounded-2xl hover:bg-indigo-50 transition-all duration-300 shadow-sm hover:shadow-md ${
+                            selectedComplaint?._id === c._id 
+                              ? "bg-gradient-to-r from-indigo-100 border-indigo-500" 
+                              : "bg-white border-gray-200 hover:border-indigo-300"
                           }`}
                         >
-                          <div className="flex justify-between items-center">
-                            <span>{c.category}</span>
-                            <span className="text-sm text-gray-500">{c.status}</span>
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="font-bold text-gray-800">{c.category}</span>
+                            <span 
+                              className={`px-3 py-1 rounded-lg text-xs font-semibold ${
+                                          c.status === STATUS.PENDING
+                                            ? "bg-yellow-100 text-yellow-700"
+                                            : c.status === STATUS.IN_PROGRESS
+                                            ? "bg-blue-100 text-blue-700"
+                                            : "bg-green-100 text-green-700"
+                                        }`}
+                            >
+                              {c.status}
+                            </span>
                           </div>
                           <div className="text-sm text-gray-600 line-clamp-2">{c.description}</div>
-                        </button>
+                        </motion.button>
                       ))}
                     </div>
                   )}
@@ -423,29 +488,44 @@ const FeedbackForm = ({
                   {selectedComplaint && (
                     <div>
                       <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-5 shadow-inner mb-6">
-                        <h3 className="text-lg font-semibold text-indigo-800 mb-3 flex items-center gap-2">
+                        <h3 className="text-lg font-bold text-indigo-700 mb-3 flex items-center gap-2">
                           Complaint Details
                         </h3>
 
-                        <div className="mt-6 p-4 border rounded-xl bg-gray-50">
-                          <h4 className="font-semibold mb-2">Complaint Details</h4>
-                          <p><strong>Category:</strong> {selectedComplaint.category}</p>
-                          <p><strong>Priority:</strong> {selectedComplaint.priority}</p>
-                          <p><strong>Campus:</strong> {selectedComplaint.campus}</p>
-                          <p><strong>Hostel:</strong> {selectedComplaint.hostel}</p>
-                          <p><strong>Status:</strong> {selectedComplaint.status}</p>
-                          <p className="mt-2"><strong>Description:</strong> {selectedComplaint.description}</p>
+                        <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-5 shadow-inner mb-6">
+                          <div className="grid md:grid-cols-1 gap-4">
+                            <InfoRow
+                              label="Category"
+                              value={selectedComplaint.category}
+                            />
+                            <InfoRow
+                              label="Description" 
+                              value={selectedComplaint.description}
+                            />
+                            <InfoRow
+                              label="Status"
+                              value={selectedComplaint.status}
+                            />
+                            <InfoRow
+                              label="Handled By" 
+                              value={selectedComplaint.assignedTo || "Not assigned"}
+                            />
+                            <InfoRow
+                              label="Date Submitted" 
+                              value={selectedComplaint.dateSubmitted?.toDate
+                                      ? selectedComplaint.dateSubmitted.toDate().toLocaleString()
+                                      : new Date(selectedComplaint.dateSubmitted).toLocaleString()
+                                    }
+                            />
+                          </div>
                         </div>
-
-                        <p className="mt-3 text-gray-600 text-sm leading-relaxed">
-                          <strong>Description:</strong> {selectedComplaint.description}
-                        </p>
                       </div>
                       <button
-                        onClick={() => setSelectedComplaint(null)}
-                        className="text-red-500 text-sm underline mt-2"
-                      >
-                        Clear Selection
+                          type="button"
+                          onClick={() => setSelectedComplaint(null)}
+                          className="px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 shadow-md"
+                        >
+                          Clear Selection
                       </button>
                     </div>
                   )}
@@ -456,7 +536,7 @@ const FeedbackForm = ({
               {step === 3 && (
                 <form onSubmit={handleSubmit} className="space-y-6">
                   <h2 className="text-2xl font-bold text-indigo-700 mb-6 text-center">
-                    Share Your Feedback
+                    🌟 Rate Your Experience
                   </h2>
 
                   {/* --- Ratings --- */}
@@ -467,6 +547,7 @@ const FeedbackForm = ({
                         className="block text-lg font-semibold text-gray-700 mb-2 capitalize"
                       >
                         {aspect.replace(/([A-Z])/g, " $1")}
+                        <HelpTooltip label={`Rate the ${aspect.replace(/([A-Z])/g, " $1")} from 1 to 5`} />
                       </label>
 
                       <div className="flex flex-col">
@@ -488,15 +569,29 @@ const FeedbackForm = ({
                           ))}
                         </div>
 
-                        <span className="mt-1 text-sm text-gray-600 min-h-[1rem]">
-                          {hoverRatings[aspect]
-                            ? ratingLabels[hoverRatings[aspect]]
-                            : ratings[aspect]
-                            ? ratingLabels[ratings[aspect]]
-                            : ""}
-                        </span>
+                        <div>
+                          <span className="mt-1 text-sm text-gray-600 min-h-[1rem]">
+                            {hoverRatings[aspect]
+                              ? ratingLabels[hoverRatings[aspect]]
+                              : ratings[aspect]
+                              ? ratingLabels[ratings[aspect]]
+                              : ""}
+                          </span>
 
-                        
+                          <span className="ml-2 text-xl">
+                            {ratings[aspect] === 1
+                              ? "😢"
+                              : ratings[aspect] === 2
+                              ? "😔"
+                              : ratings[aspect] === 3
+                              ? "🙂"
+                              : ratings[aspect] === 4
+                              ? "😄"
+                              : ratings[aspect] === 5
+                              ? "😍"
+                              : ""}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -593,17 +688,29 @@ const FeedbackForm = ({
 
                     {/* Preview */}
                     {image && (
-                      <img
-                        src={image}
-                        alt="Feedback attachment preview"
-                        className="mt-3 w-40 h-40 object-cover rounded-lg border border-gray-200 shadow-md transition-transform hover:scale-105"
-                      />
+                      <div className="mt-3 flex items-center gap-3">
+                        <img
+                          src={image}
+                          alt="Feedback attachment preview"
+                          className="mt-3 w-40 h-40 object-cover rounded-lg border border-gray-200 shadow-md transition-transform hover:scale-105"
+                        />
+
+                        <button
+                          type="button"
+                          onClick={() => setImage(null)}
+                          className="px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 shadow-md"
+                        >
+                          Remove Image
+                        </button>
+                      </div>
                     )}
                   </div>
 
-                  {/* Submit */}
+                  {/* Submit Button*/}
                   <div className="flex justify-center space-x-4 pt-4">
                     <PrimaryButton
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
                       type="submit"
                       className="bg-indigo-600 hover:bg-indigo-700"
                       disabled={isSubmitting}
@@ -629,7 +736,16 @@ const FeedbackForm = ({
           {/* Step Navigation */}
           <div className="p-6 flex justify-between items-center border-t bg-gray-50">
             <button
-              onClick={handlePrev}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => {
+                if (step === 1) {
+                  handleCancelEdit(); // call your existing cancel logic
+                  onBack?.(); // go back to previous page if needed
+                } else {
+                  handlePrev(); // regular step navigation
+                }
+              }}
               className={`
                 w-full py-3 px-4 font-semibold text-lg tracking-wider
                 bg-gray-400 text-white rounded-xl shadow-xl
@@ -639,11 +755,18 @@ const FeedbackForm = ({
               `}
               type="button"
             >
-              <ArrowLeft className="w-5 h-5 mr-2 inline" /> Back
+              <ArrowLeft className="w-5 h-5 mr-2 inline" />{" "}
+              {step === 1
+                ? editingFeedback
+                  ? "Cancel Editing"
+                  : "Cancel Submitting"
+                : "Back"}
             </button>
 
             {step < 3 && (
               <PrimaryButton
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
                 onClick={handleNext}
                 className="bg-indigo-600 hover:bg-indigo-700"
                 type="button"
@@ -655,32 +778,34 @@ const FeedbackForm = ({
         </div>
 
         {/* Message Box */}
-        {messageBox.visible && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.3 }}
-            className={`fixed top-6 right-6 z-50 flex items-center gap-3 p-4 rounded-lg shadow-lg transition-all ${
-              messageBox.type === "success"
-                ? "bg-green-100 text-green-700"
-                : "bg-red-100 text-red-700"
-            }`}
-          >
-            {messageBox.type === "success" ? (
-              <CheckCircle className="w-5 h-5" />
-            ) : (
-              <AlertTriangle className="w-5 h-5" />
-            )}
-            <span className="font-medium">{messageBox.text}</span>
-            <button
-              onClick={() => setMessageBox({ ...messageBox, visible: false })}
-              className="ml-3 text-sm underline hover:opacity-80 focus:outline-none focus:ring-1 focus:ring-gray-400 rounded"
+        <AnimatePresence>
+          {messageBox.visible && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+              className={`fixed top-6 right-6 z-50 flex items-center gap-3 p-4 rounded-lg shadow-lg transition-all ${
+                messageBox.type === "success"
+                  ? "bg-green-100 text-green-700"
+                  : "bg-red-100 text-red-700"
+              }`}
             >
-              Close
-            </button>
-          </motion.div>
-        )}
+              {messageBox.type === "success" ? (
+                <CheckCircle className="w-5 h-5" />
+              ) : (
+                <AlertTriangle className="w-5 h-5" />
+              )}
+              <span className="font-medium">{messageBox.text}</span>
+              <button
+                onClick={() => setMessageBox({ ...messageBox, visible: false })}
+                className="ml-3 text-sm underline hover:opacity-80 focus:outline-none focus:ring-1 focus:ring-gray-400 rounded"
+              >
+                Close
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );
