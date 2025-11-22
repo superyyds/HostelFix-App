@@ -466,125 +466,55 @@ const App = () => {
     const handleBackToLogin = () => handleViewChange("login");
     const handleCreateComplaint = (complaint) => setComplaints((prev) => [complaint, ...prev]);
 
-const handleFeedbackSubmit = async (feedback) => {
-    try {
-        const feedbacksRef = collection(db, "feedbacks");
-        const docRef = await addDoc(feedbacksRef, {
-            ...feedback,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            userId: appState.userId,
-            userEmail: appState.userData?.email || "",
-            userName: appState.userData?.name || "",
-            status: 'submitted',
-            reviewed: false
-        });
-        
-        setMessage({
-            title: "Feedback Submitted!",
-            text: "Your feedback has been recorded successfully.",
-            type: "success"
-        });
-        setIsMessageVisible(true);
-        
-        // Auto-hide success message after 3 seconds
-        setTimeout(() => {
-            setIsMessageVisible(false);
-        }, 3000);
-
-    } catch (error) {
-        setMessage({
-            title: "Submission Failed",
-            text: "Failed to submit feedback. Please try again.",
-            type: "error"
-        });
-        setIsMessageVisible(true);
-    }
-};
-
-const handleDeleteFeedback = async (id) => {
-    try {
-        console.log("🗑️ DEBUG: Deleting feedback with ID:", id);
-        
-        // Check if user owns this feedback (security check)
-        const feedbackToDelete = feedbackList.find(f => f.id === id);
-        if (!feedbackToDelete) {
-            throw new Error("Feedback not found");
+    // Feedback handlers
+    const handleFeedbackSubmit = async (feedback) => {
+        try {
+            if (editingFeedback) {
+                // Update existing feedback
+                const feedbackRef = doc(db, "feedbacks", feedback.id.toString());
+                await updateDoc(feedbackRef, feedback);
+            } else {
+                // Add new feedback
+                const docRef = await addDoc(collection(db, "feedbacks"), feedback);
+            }
+            setEditingFeedback(null);
+            handleViewChange("studentFeedbackList")
+        } catch (error) {
+            console.error("Error adding feedback: ", error);
         }
-        
-        if (feedbackToDelete.userId !== appState.userId && appState.role !== 'warden') {
-            throw new Error("You can only delete your own feedback");
+    };
+
+    const handleDeleteFeedback = async (id) => {
+        try {
+            await deleteDoc(doc(db, "feedbacks", id.toString()));
+            setFeedbackList((prev) => prev.filter((f) => f.id !== id));
+        } catch (error) {
+            console.error("Error deleting feedback: ", error);
         }
+    };
 
-        const feedbackRef = doc(db, "feedbacks", id);
-        await deleteDoc(feedbackRef);
-        
-        setMessage({
-            title: "Feedback Deleted",
-            text: "Your feedback has been deleted successfully.",
-            type: "success"
-        });
-        setIsMessageVisible(true);
-        
-        setTimeout(() => {
-            setIsMessageVisible(false);
-        }, 3000);
+    const handleEditFeedback = (feedback) => {
+        setEditingFeedback(feedback);
+        setView("feedbackForm");
+    };
 
-    } catch (error) {
-        setMessage({
-            title: "Deletion Failed",
-            text: error.message || "Failed to delete feedback. Please try again.",
-            type: "error"
-        });
-        setIsMessageVisible(true);
-    }
-};
-
-const handleEditFeedback = (feedback) => {
-    setEditingFeedback(feedback);
-    handleViewChange("feedbackForm");
-};
-
-const handleCancelEdit = () => {
-    setEditingFeedback(null);
-    handleViewChange("studentFeedbackList");
-};
+    const handleCancelEdit = () => {
+        setEditingFeedback(null);
+        setView("studentFeedbackList");
+    };
 
     const handleMarkReviewed = async (id) => {
         try {
-            
-            if (appState.role !== 'warden') {
-                throw new Error("Only wardens can mark feedback as reviewed");
-            }
-
-            const feedbackRef = doc(db, "feedbacks", id);
+            const feedbackCollectionPath = "feedbacks";
+            const feedbackRef = doc(db, feedbackCollectionPath, id);
             await updateDoc(feedbackRef, {
                 reviewed: true,
                 reviewedAt: new Date().toISOString(),
                 reviewedBy: appState.userData?.name || appState.userId,
                 updatedAt: new Date().toISOString()
             });
-            
-            
-            setMessage({
-                title: "Feedback Reviewed",
-                text: "Feedback has been marked as reviewed.",
-                type: "success"
-            });
-            setIsMessageVisible(true);
-            
-            setTimeout(() => {
-                setIsMessageVisible(false);
-            }, 3000);
-
         } catch (error) {
-
-            setMessage({
-                title: "Update Failed",
-                text: error.message || "Failed to mark feedback as reviewed. Please try again.",
-                type: "error"
-            });
-            setIsMessageVisible(true);
+            console.error("Error marking feedback as reviewed: ", error);
         }
     };
 
