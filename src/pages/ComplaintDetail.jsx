@@ -165,18 +165,53 @@ const ComplaintDetail = ({ complaint, currentUser, onClose, onGiveFeedback }) =>
         try {
           // #2: Notify student when warden updates complaint (changes status)
           if (isWarden && statusChanged && complaint.userId) {
-            await notifyStudentStatusChangedByWarden(
-              {
-                complaintId: complaint._id,
-                status: formStatus,
-                category: complaint.category,
-                changedBy: currentUser.name || 'Warden'
-              },
-              complaint.userId
-            );
-            console.log('✅ Student notified about status change by warden');
+            // Check the status transition to send appropriate notification
+            const previousStatus = displayStatus;
+            const newStatus = formStatus;
             
-            // #2b: Also notify assigned staff when warden changes status (using different notification type)
+            // Case 1: Pending -> In Progress: Send "Complaint Approved" notification
+            if (previousStatus === STATUS.PENDING && newStatus === STATUS.IN_PROGRESS) {
+              await notifyStudentComplaintUpdated(
+                {
+                  complaintId: complaint._id,
+                  status: formStatus,
+                  category: complaint.category,
+                  changedBy: currentUser.name || 'Warden'
+                },
+                complaint.userId
+              );
+              console.log('✅ Student notified: Complaint Approved');
+            }
+            // Case 2: Resolved -> In Progress: Send "Complaint Status Updated" notification
+            // Student receives: "Complaint Status Updated" - "Your complaint is reopened again. Click to see the details."
+            else if (previousStatus === STATUS.RESOLVED && newStatus === STATUS.IN_PROGRESS) {
+              await notifyStudentStatusChangedByWarden(
+                {
+                  complaintId: complaint._id,
+                  status: formStatus,
+                  category: complaint.category,
+                  changedBy: currentUser.name || 'Warden'
+                },
+                complaint.userId
+              );
+              console.log('✅ Student notified: Complaint Status Updated (Resolved -> In Progress)');
+            }
+            // Case 3: Other status changes: Send generic status change notification
+            else {
+              await notifyStudentStatusChangedByWarden(
+                {
+                  complaintId: complaint._id,
+                  status: formStatus,
+                  category: complaint.category,
+                  changedBy: currentUser.name || 'Warden'
+                },
+                complaint.userId
+              );
+              console.log('✅ Student notified about status change by warden');
+            }
+            
+            // #2b: Notify assigned staff when warden changes status (for all status changes including Resolved -> In Progress)
+            // Staff receives: "Status Changed by Warden" - "Warden has changed the complaint status to "In Progress". Click to see details."
             if (complaint.assignedTo) {
               await notifyStaffStatusChanged(
                 {

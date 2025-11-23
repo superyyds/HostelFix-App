@@ -22,6 +22,8 @@ import { db } from './firebase';
  * - COMPLAINT_ASSIGNED: When warden assigns complaint to staff
  * - COMPLAINT_RESOLVED: When staff marks complaint as resolved
  * - MESSAGE_RECEIVED: When someone sends a message in complaint conversation
+ * - FEEDBACK_CREATED: When student creates a feedback
+ * - STATUS_CHANGED_BY_WARDEN: When warden changes complaint status
  */
 
 // Create a notification
@@ -370,6 +372,42 @@ export const notifyStudentStatusChangedByWarden = async (complaintData, studentI
     });
   } catch (error) {
     console.error('❌ Error notifying student about status change:', error);
+  }
+};
+
+/**
+ * 9. Notify warden when student creates a feedback
+ */
+export const notifyWardenNewFeedback = async (feedbackData, wardenId) => {
+  try {
+    // Validate wardenId
+    if (!wardenId) {
+      console.error('❌ Cannot notify warden: wardenId is undefined');
+      throw new Error('wardenId is required but was undefined');
+    }
+
+    console.log('🔔 Notifying warden:', wardenId, 'about feedback from:', feedbackData.userName);
+
+    await createNotification({
+      type: 'FEEDBACK_CREATED',
+      recipientId: wardenId,
+      title: 'New Feedback Submitted',
+      message: `${feedbackData.userName} submitted new feedback`,
+      feedbackId: feedbackData.feedbackId,
+      complaintId: feedbackData.complaintId,
+      metadata: {
+        studentName: feedbackData.userName,
+        averageRating: feedbackData.averageRating,
+        complaintId: feedbackData.complaintId
+      }
+    });
+    
+    console.log('✅ Warden notification sent successfully');
+  } catch (error) {
+    console.error('❌ Error notifying warden about feedback:', error);
+    console.error('❌ Warden ID:', wardenId);
+    console.error('❌ Feedback data:', feedbackData);
+    throw error; // Re-throw to help with debugging
   }
 };
 

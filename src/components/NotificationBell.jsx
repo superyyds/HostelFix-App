@@ -51,9 +51,15 @@ const NotificationBell = ({ userId, onNotificationClick }) => {
       // Close panel
       setIsOpen(false);
       
-      // Navigate to complaint detail
-      if (onNotificationClick && notification.complaintId) {
-        onNotificationClick(notification.complaintId, notification);
+      // Navigate based on notification type
+      if (onNotificationClick) {
+        // For feedback notifications, pass null complaintId but include notification
+        // For other notifications, pass complaintId if available
+        if (notification.type === 'FEEDBACK_CREATED') {
+          onNotificationClick(null, notification);
+        } else if (notification.complaintId) {
+          onNotificationClick(notification.complaintId, notification);
+        }
       }
     } catch (error) {
       console.error('Error handling notification click:', error);
@@ -102,6 +108,8 @@ const NotificationBell = ({ userId, onNotificationClick }) => {
         return '🎉';
       case 'MESSAGE_RECEIVED':
         return '💬';
+      case 'FEEDBACK_CREATED':
+        return '⭐';
       default:
         return '🔔';
     }

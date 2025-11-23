@@ -22,6 +22,7 @@ import FeedbackViewer from './pages/FeedbackViewer';
 import FeedbackList from './pages/FeedbackList';
 import GenerateReports from './pages/GenerateReports';
 import { wardenSessionCache } from './api/cache';
+import { notifyWardenNewFeedback } from './api/notifications';
 
 // Firebase config (your existing config)
 const firebaseConfig = {
@@ -468,6 +469,10 @@ const App = () => {
 
 const handleFeedbackSubmit = async (feedback) => {
     try {
+        // Check if this is a new feedback or an edit
+        // If feedback has an id or _id, it's an edit (though current code creates new doc anyway)
+        const isNewFeedback = !feedback.id && !feedback._id;
+        
         const feedbacksRef = collection(db, "feedbacks");
         const docRef = await addDoc(feedbacksRef, {
             ...feedback,
@@ -479,6 +484,36 @@ const handleFeedbackSubmit = async (feedback) => {
             status: 'submitted',
             reviewed: false
         });
+        
+        // 🔔 NOTIFICATION: Notify warden about new feedback (only for new feedbacks, not edits)
+        if (isNewFeedback && appState.role === 'student') {
+            try {
+                // Find all wardens
+                const wardensQuery = query(collection(db, "users"), where("role", "==", "warden"));
+                const wardenSnapshot = await getDocs(wardensQuery);
+                
+                // Notify all wardens
+                const notificationPromises = wardenSnapshot.docs.map(wardenDoc => {
+                    const wardenData = wardenDoc.data();
+                    const wardenId = wardenDoc.id;
+                    
+                    console.log('🔍 DEBUG: Notifying warden:', wardenId, 'Name:', wardenData.name);
+                    
+                    return notifyWardenNewFeedback({
+                        feedbackId: docRef.id,
+                        userName: appState.userData?.name || "Unknown",
+                        averageRating: feedback.averageRating || 0,
+                        complaintId: feedback.complaintId
+                    }, wardenId);
+                });
+                
+                await Promise.all(notificationPromises);
+                console.log('✅ Warden(s) notified about new feedback');
+            } catch (notifError) {
+                console.error('⚠️ Failed to send notifications:', notifError);
+                // Don't fail the feedback submission if notification fails
+            }
+        }
         
         setMessage({
             title: "Feedback Submitted!",
@@ -588,8 +623,16 @@ const handleCancelEdit = () => {
         }
     };
 
-    // Handle notification click - fetch complaint and show detail
-    const handleNotificationClick = async (complaintId) => {
+    // Handle notification click - fetch complaint and show detail, or navigate to feedback viewer
+    const handleNotificationClick = async (complaintId, notification = null) => {
+        // Check if this is a feedback notification - redirect to feedback viewer
+        if (notification && notification.type === 'FEEDBACK_CREATED' && appState.role === 'warden') {
+            setIsFromNotification(true); // Track that this came from a notification
+            handleViewChange('feedbackViewer');
+            return;
+        }
+
+        // For other notification types, handle complaint navigation
         if (!complaintId) {
             handleViewChange('complaintList');
             return;
