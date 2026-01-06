@@ -22,6 +22,8 @@ import FeedbackViewer from './pages/FeedbackViewer';
 import FeedbackList from './pages/FeedbackList';
 import GenerateReports from './pages/GenerateReports';
 import { wardenSessionCache } from './api/cache';
+import { getBackendSession } from './api/backendSession';
+import { destroyBackendSession } from './api/backendSession';
 
 // Firebase config (your existing config)
 const firebaseConfig = {
@@ -359,6 +361,51 @@ const App = () => {
         return () => unsubscribe();
     }, [isRegistering, lastWardenHash, isLoginCheckFailed, isManualLogout]);
 
+    // Backend session timeout check - periodically verify session is still valid
+    useEffect(() => {
+        if (!appState.isAuthReady || !appState.isAuthenticated) return;
+
+        const checkBackendSession = async () => {
+            try {
+                const res = await fetch('http://localhost:4000/api/session/me', {
+                    credentials: 'include',
+                });
+
+                if (res.status === 440) {
+                    // Session expired due to inactivity
+                    const data = await res.json().catch(() => ({}));
+                    setMessage({
+                        title: "Session Expired",
+                        text: data.message || "Your session has expired due to inactivity. Please log in again.",
+                        type: "error"
+                    });
+                    setIsMessageVisible(true);
+                    
+                    // Sign out from Firebase and clear backend session
+                    await destroyBackendSession();
+                    await signOut(auth);
+                    handleViewChange("login");
+                } else if (!res.ok) {
+                    // Session invalid or not found
+                    console.warn("Backend session check failed:", res.status);
+                }
+            } catch (error) {
+                // Network error - don't log out, just log
+                console.error("Error checking backend session:", error);
+            }
+        };
+
+        // Check immediately on mount
+        checkBackendSession();
+
+        // Check every 30 seconds while authenticated
+        const intervalId = setInterval(checkBackendSession, 30000);
+
+        return () => {
+            clearInterval(intervalId);
+        };
+    }, [appState.isAuthReady, appState.isAuthenticated]);
+
     // Feedback fetching
     useEffect(() => {
         // Only fetch feedbacks if auth is ready AND user is authenticated
@@ -450,7 +497,13 @@ const App = () => {
             setLastWardenHash(null);
             wardenSessionCache.email = null;
             wardenSessionCache.password = null;
+
+            // Destroy backend Express session (cookie-based) first
+            await destroyBackendSession();
+
+            // Then sign out from Firebase
             await signOut(auth);
+
             handleViewChange("login");
             setTimeout(() => {
                 setIsManualLogout(false);
