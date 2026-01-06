@@ -25,7 +25,7 @@ const ComplaintForm = ({ currentUser, onCreate, onClose }) => {
     "Main Campus": {
       hostels: {
         "AMAN DAMAI": {
-          image: "../../images/hostels/aman-damai.jpeg",
+          image: "/images/hostels/aman-damai.jpeg",
           logo: "/images/logos/aman-damai-logo.jpg"
         },
         "BAKTI PERMAI": {
