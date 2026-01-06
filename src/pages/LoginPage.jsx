@@ -10,6 +10,7 @@ import {
     signOut,
     fetchUserRole
 } from '../api/firebase';
+import { createBackendSession } from '../api/backendSession';
 import { wardenSessionCache } from '../api/cache';
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { db } from '../api/firebase';
@@ -230,7 +231,24 @@ const LoginPage = ({ onForgotPassword, onLoginFailure, onValidationFailure, onLo
             }
 
             // --- ✅ ALL SECURITY CHECKS PASSED ---
-            console.log("🎉 DEBUG: All checks passed - login successful");
+            console.log("🎉 DEBUG: All checks passed - login successful. Creating backend session...");
+
+            // Create secure backend session (Express + cookies) after Firebase auth succeeds
+            try {
+                await createBackendSession(user.email, actualUserRole);
+            } catch (backendError) {
+                console.error("❌ Backend session creation failed:", backendError);
+                // If backend session fails, sign out to keep state consistent
+                await signOut(auth);
+                onLoginFailure(false);
+                setIsLoading(false);
+                showMessage(
+                    "Login Failed",
+                    "We could not create a secure server session. Please try again shortly.",
+                    "error"
+                );
+                return;
+            }
             
             // Release the lock and signal success
             onLoginSuccess();
