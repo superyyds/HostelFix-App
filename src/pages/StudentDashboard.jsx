@@ -27,7 +27,7 @@ const StudentDashboard = ({ onLogout, name, hostelId, userRole, onViewChange, us
         <div className="flex items-center bg-indigo-50 p-4 shadow-xl mb-8 px-10">
             <div className="flex items-center flex-grow">
                 <img
-                    src={"../public/logo.png"}
+                    src={"/logo.png"}
                     alt={"HostelFix Logo"}
                     className="h-14 w-auto"
                 />
