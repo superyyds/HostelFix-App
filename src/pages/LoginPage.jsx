@@ -304,7 +304,7 @@ const LoginPage = ({ onForgotPassword, onLoginFailure, onValidationFailure, onLo
                     {/* <Briefcase className="w-10 h-10 text-indigo-600 mr-3" />
                     <h1 className="text-4xl font-extrabold text-gray-800 tracking-tight">HostelFix</h1> */}
                     <img
-                        src={"../public/logo.png"}
+                        src={"/logo.png"}
                         alt={"HostelFix Logo"}
                         className="w-3/4 object-cover"
                     />
