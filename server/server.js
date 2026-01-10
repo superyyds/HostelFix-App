@@ -110,8 +110,9 @@ app.use(
     cookie: {
       httpOnly: true,
       secure: NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: NODE_ENV === 'production' ? 'none' : 'lax', // 'none' required for cross-origin on Render
       maxAge: COOKIE_MAX_AGE, // Browser keeps cookie for 24h
+      path: '/', // Ensure cookie is sent for all paths
     },
   }),
 );
@@ -142,7 +143,17 @@ app.use((req, res, next) => {
 
   // Initialize lastActivity if this is a new session
   if (!req.session.lastActivity) {
-    if (!isCheckOnly) req.session.lastActivity = now;
+    if (!isCheckOnly) {
+      req.session.lastActivity = now;
+      // Explicitly save session after setting lastActivity
+      req.session.save((err) => {
+        if (err) {
+          console.error('Error saving session:', err);
+        }
+        next();
+      });
+      return;
+    }
     return next();
   }
 
@@ -154,7 +165,12 @@ app.use((req, res, next) => {
       if (err) {
         console.error('Error destroying expired session:', err);
       }
-      res.clearCookie('hostelfix.sid');
+      res.clearCookie('hostelfix.sid', {
+        httpOnly: true,
+        secure: NODE_ENV === 'production',
+        sameSite: NODE_ENV === 'production' ? 'none' : 'lax',
+        path: '/',
+      });
       
       // Send specific 440 status code
       return res.status(440).json({
@@ -164,8 +180,18 @@ app.use((req, res, next) => {
     });
   } else {
     // Update lastActivity and continue
-    if (!isCheckOnly) req.session.lastActivity = now;
-    next();
+    if (!isCheckOnly) {
+      req.session.lastActivity = now;
+      // Explicitly save session after updating lastActivity
+      req.session.save((err) => {
+        if (err) {
+          console.error('Error saving session:', err);
+        }
+        next();
+      });
+    } else {
+      next();
+    }
   }
 });
 
@@ -223,10 +249,21 @@ app.post(
     };
     req.session.lastActivity = now;
 
-    res.status(200).json({
-      ok: true,
-      message: 'Login successful. Session created.',
-      user: req.session.user,
+    // Explicitly save session to ensure cookie is set
+    req.session.save((err) => {
+      if (err) {
+        console.error('Error saving session on login:', err);
+        return res.status(500).json({
+          ok: false,
+          message: 'Failed to create session. Please try again.',
+        });
+      }
+
+      res.status(200).json({
+        ok: true,
+        message: 'Login successful. Session created.',
+        user: req.session.user,
+      });
     });
   },
 );
@@ -237,7 +274,12 @@ app.post('/api/session/logout', (req, res) => {
   }
 
   req.session.destroy((err) => {
-    res.clearCookie('hostelfix.sid');
+    res.clearCookie('hostelfix.sid', {
+      httpOnly: true,
+      secure: NODE_ENV === 'production',
+      sameSite: NODE_ENV === 'production' ? 'none' : 'lax',
+      path: '/',
+    });
     if (err) {
       return res
         .status(500)
@@ -248,6 +290,16 @@ app.post('/api/session/logout', (req, res) => {
 });
 
 app.get('/api/session/me', requireSession, (req, res) => {
+  // Update lastActivity if this is not a check-only request
+  const isCheckOnly = req.headers['x-session-touch'] === 'false';
+  if (!isCheckOnly && req.session) {
+    req.session.lastActivity = Date.now();
+    req.session.save((err) => {
+      if (err) {
+        console.error('Error saving session on /me:', err);
+      }
+    });
+  }
   res.status(200).json({ ok: true, user: req.session.user });
 });
 
