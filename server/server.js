@@ -17,9 +17,7 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 4000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
-const FRONTEND_ORIGIN =
-  process.env.FRONTEND_ORIGIN ||
-  (NODE_ENV === 'production' ? undefined : 'http://localhost:5173');
+const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || 'http://localhost:5173';
 
 if (!process.env.SESSION_SECRET) {
   console.warn(
