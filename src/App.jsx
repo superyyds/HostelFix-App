@@ -36,6 +36,8 @@ const firebaseConfig = {
     measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
+const BACKEND_BASE_URL = import.meta.env.VITE_BACKEND_BASE_URL || 'http://localhost:4000';
+
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
@@ -367,7 +369,7 @@ const App = () => {
 
         const checkBackendSession = async () => {
             try {
-                const res = await fetch('http://localhost:4000/api/session/me', {
+                const res = await fetch(`${BACKEND_BASE_URL}/api/session/me`, {
                     credentials: 'include',
                 });
 
