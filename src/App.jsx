@@ -363,50 +363,53 @@ const App = () => {
         return () => unsubscribe();
     }, [isRegistering, lastWardenHash, isLoginCheckFailed, isManualLogout]);
 
-    // // Backend session timeout check - periodically verify session is still valid
-    // useEffect(() => {
-    //     if (!appState.isAuthReady || !appState.isAuthenticated) return;
+    // Backend session timeout check - periodically verify session is still valid
+    useEffect(() => {
+        if (!appState.isAuthReady || !appState.isAuthenticated) return;
 
-    //     const checkBackendSession = async () => {
-    //         try {
-    //             const res = await fetch(`${BACKEND_BASE_URL}/api/session/me`, {
-    //                 credentials: 'include',
-    //             });
+        const checkBackendSession = async () => {
+            try {
+                const res = await fetch(`${BACKEND_BASE_URL}/api/session/me`, {
+                    credentials: 'include',
+                    headers: {
+                        'X-Session-Touch': 'false'
+                    }
+                    });
 
-    //             if (res.status === 440) {
-    //                 // Session expired due to inactivity
-    //                 const data = await res.json().catch(() => ({}));
-    //                 setMessage({
-    //                     title: "Session Expired",
-    //                     text: data.message || "Your session has expired due to inactivity. Please log in again.",
-    //                     type: "error"
-    //                 });
-    //                 setIsMessageVisible(true);
+                if (res.status === 440) {
+                    // Session expired due to inactivity
+                    const data = await res.json().catch(() => ({}));
+                    setMessage({
+                        title: "Session Expired",
+                        text: data.message || "Your session has expired due to inactivity. Please log in again.",
+                        type: "error"
+                    });
+                    setIsMessageVisible(true);
                     
-    //                 // Sign out from Firebase and clear backend session
-    //                 await destroyBackendSession();
-    //                 await signOut(auth);
-    //                 handleViewChange("login");
-    //             } else if (!res.ok) {
-    //                 // Session invalid or not found
-    //                 console.warn("Backend session check failed:", res.status);
-    //             }
-    //         } catch (error) {
-    //             // Network error - don't log out, just log
-    //             console.error("Error checking backend session:", error);
-    //         }
-    //     };
+                    // Sign out from Firebase and clear backend session
+                    await destroyBackendSession();
+                    await signOut(auth);
+                    handleViewChange("login");
+                } else if (!res.ok) {
+                    // Session invalid or not found
+                    console.warn("Backend session check failed:", res.status);
+                }
+            } catch (error) {
+                // Network error - don't log out, just log
+                console.error("Error checking backend session:", error);
+            }
+        };
 
-    //     // Check immediately on mount
-    //     checkBackendSession();
+        // Check immediately on mount
+        checkBackendSession();
 
-    //     // Check every 30 seconds while authenticated
-    //     const intervalId = setInterval(checkBackendSession, 30000);
+        // Check every 30 seconds while authenticated
+        const intervalId = setInterval(checkBackendSession, 30000);
 
-    //     return () => {
-    //         clearInterval(intervalId);
-    //     };
-    // }, [appState.isAuthReady, appState.isAuthenticated]);
+        return () => {
+            clearInterval(intervalId);
+        };
+    }, [appState.isAuthReady, appState.isAuthenticated]);
 
     // Feedback fetching
     useEffect(() => {

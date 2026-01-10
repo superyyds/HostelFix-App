@@ -46,6 +46,7 @@ app.use(
       'Authorization',
       'X-Requested-With',
       'X-CSRF-Token',
+      'X-Session-Touch',
     ],
   }),
 );
@@ -122,10 +123,15 @@ app.use((req, res, next) => {
     console.log('[Timeout Check] No active session found.');
     return next();
   }
-  
+
   const now = Date.now();
   const lastActivity = req.session.lastActivity || now;
   const timeSinceLastActivity = now - lastActivity;
+
+  const isCheckOnly =
+    req.path === '/api/session/me' &&
+    req.method === 'GET' &&
+    req.headers['x-session-touch'] === 'false';
 
   // DEBUG LOG: Watch this in your terminal!
   console.log(
@@ -136,7 +142,7 @@ app.use((req, res, next) => {
 
   // Initialize lastActivity if this is a new session
   if (!req.session.lastActivity) {
-    req.session.lastActivity = now;
+    if (!isCheckOnly) req.session.lastActivity = now;
     return next();
   }
 
@@ -158,7 +164,7 @@ app.use((req, res, next) => {
     });
   } else {
     // Update lastActivity and continue
-    req.session.lastActivity = now;
+    if (!isCheckOnly) req.session.lastActivity = now;
     next();
   }
 });
