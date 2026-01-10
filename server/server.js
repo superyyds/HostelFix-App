@@ -113,12 +113,17 @@ app.use(
       maxAge: COOKIE_MAX_AGE, // Browser keeps cookie for 24h
     },
   }),
+
+  console.log('✅ Session middleware initialized'),
 );
 
 // --- Inactivity Timeout Middleware ---
 app.use((req, res, next) => {
   // If no session exists at all, skip
-  if (!req.session || !req.session.user) return next();
+  if (!req.session || !req.session.user) {
+    console.log('[Timeout Check] No active session found.');
+    return next();
+  }
 
   const now = Date.now();
   const lastActivity = req.session.lastActivity || now;
