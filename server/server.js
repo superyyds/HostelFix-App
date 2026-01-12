@@ -87,6 +87,11 @@ const authLimiter = rateLimit({
   max: 20,
   standardHeaders: true,
   legacyHeaders: false,
+  message: {
+    ok: false,
+    message: 'Too many login attempts. Please try again later.',
+  },
+  statusCode: 429,
 });
 
 // --- Session Management ---

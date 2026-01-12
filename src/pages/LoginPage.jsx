@@ -242,9 +242,16 @@ const LoginPage = ({ onForgotPassword, onLoginFailure, onValidationFailure, onLo
                 await signOut(auth);
                 onLoginFailure(false);
                 setIsLoading(false);
+                
+                // Check if it's a rate limiting error
+                let errorMessage = "We could not create a secure server session. Please try again shortly.";
+                if (backendError.code === 'RATE_LIMIT_EXCEEDED' || backendError.status === 429) {
+                    errorMessage = "Too many login attempts. Please try again later.";
+                }
+                
                 showMessage(
                     "Login Failed",
-                    "We could not create a secure server session. Please try again shortly.",
+                    errorMessage,
                     "error"
                 );
                 return;
@@ -266,6 +273,8 @@ const LoginPage = ({ onForgotPassword, onLoginFailure, onValidationFailure, onLo
 
             if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found' || error.code === 'auth/invalid-email') {
                 errorMessage = "Invalid email or password.";
+            } else if (error.code === 'auth/too-many-requests') {
+                errorMessage = "Too many login attempts. Please try again later.";
             } else if (error.code === 'auth/network-request-failed') {
                 errorMessage = "Network error. Please check your internet connection.";
             } else {

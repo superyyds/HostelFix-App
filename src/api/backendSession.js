@@ -18,6 +18,15 @@ export const createBackendSession = async (email, role) => {
   const data = await res.json().catch(() => ({}));
 
   if (!res.ok || !data.ok) {
+    // Check for rate limiting (429 status code)
+    if (res.status === 429) {
+      const message = data.message || 'Too many login attempts. Please try again later.';
+      const error = new Error(message);
+      error.code = 'RATE_LIMIT_EXCEEDED';
+      error.status = 429;
+      throw error;
+    }
+    
     const message =
       data.message || 'Failed to create backend session. Please try again.';
     throw new Error(message);
